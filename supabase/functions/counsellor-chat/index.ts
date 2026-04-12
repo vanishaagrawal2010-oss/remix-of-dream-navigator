@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, profile } = await req.json();
+    const { messages, profile, conversationId, userId } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -20,11 +21,13 @@ STUDENT PROFILE:
 - Name: ${profile.name || "Not provided"}
 - School: ${profile.school || "Not provided"}
 - Grades: ${profile.grades || "Not provided"}
+- Degree Type: ${profile.degree_type || "Not specified"}
+- Stream: ${profile.stream || "Not specified"}
 - Interests: ${(profile.interests || []).join(", ") || "Not specified"}
 - Budget: ${profile.budget || "Not specified"}
 - Target Countries: ${(profile.target_countries || []).join(", ") || "Not specified"}
 - Extracurriculars: ${(profile.extracurriculars || []).join(", ") || "None listed"}
-- Key Facts: ${JSON.stringify(profile.extracted_facts || [])}
+- Key Facts (learned from past conversations): ${JSON.stringify(profile.extracted_facts || [])}
 `;
     }
 
@@ -40,12 +43,20 @@ ${profileContext}
 
 Guidelines:
 - Always reference the student's profile when giving advice
+- If the student has a specific degree type (e.g., BTech) and stream (e.g., CS), only recommend programs matching those
 - Be specific with university names, deadlines, and requirements
 - Provide actionable steps, not vague advice
 - If the student shares new information about themselves (achievements, test scores, etc.), acknowledge it and explain how it affects their applications
 - Be encouraging but realistic about chances
 - Use markdown formatting for clarity (lists, bold, etc.)
-- Keep responses concise but thorough`;
+- Keep responses concise but thorough
+
+IMPORTANT — MEMORY EXTRACTION:
+After every response, analyze whether the student revealed NEW facts about themselves. If so, output a special JSON block at the very end of your response like:
+\`\`\`extracted_facts
+["won national science olympiad", "SAT score 1520", "interested in AI research"]
+\`\`\`
+Only include genuinely new facts not already in their profile. If no new facts, do not include this block.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -57,7 +68,7 @@ Guidelines:
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages.slice(-20), // Keep last 20 messages for context
+          ...messages.slice(-20),
         ],
         stream: true,
       }),

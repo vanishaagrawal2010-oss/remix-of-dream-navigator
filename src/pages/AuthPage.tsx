@@ -15,7 +15,7 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  if (authLoading) return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (authLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (user) return <Navigate to="/profile" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,18 +31,18 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-accent/5 blur-3xl" />
       </div>
       <Card className="glass-card w-full max-w-md relative">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 glow-border">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
             <GraduationCap className="h-7 w-7 text-primary" />
           </div>
           <CardTitle className="font-heading text-2xl gradient-text">UniGuide AI</CardTitle>
-          <CardDescription className="text-muted-foreground">
+          <CardDescription>
             {isLogin ? "Welcome back! Sign in to continue." : "Create your account to get started."}
           </CardDescription>
         </CardHeader>
@@ -54,7 +54,6 @@ const AuthPage = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="bg-muted/50 border-border/50"
             />
             <Input
               type="password"
@@ -63,7 +62,6 @@ const AuthPage = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="bg-muted/50 border-border/50"
             />
             <Button type="submit" className="w-full font-heading font-semibold" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

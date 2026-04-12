@@ -7,11 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GraduationCap, Loader2, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const COUNTRY_OPTIONS = ["USA", "UK", "Canada", "Australia", "Germany", "Netherlands", "Singapore", "Japan", "France", "Switzerland"];
+const COUNTRY_OPTIONS = ["USA", "UK", "Canada", "Australia", "Germany", "Netherlands", "Singapore", "Japan", "France", "Switzerland", "India"];
 const INTEREST_OPTIONS = ["Computer Science", "Engineering", "Business", "Medicine", "Law", "Arts", "Sciences", "Mathematics", "Psychology", "Economics"];
+const DEGREE_OPTIONS = ["BTech", "BS", "BA", "MS", "MBA", "PhD", "BBA", "MCA", "ME/MTech"];
+const STREAM_OPTIONS = ["Computer Science", "Information Technology", "Electronics", "Mechanical", "Civil", "Chemical", "Aerospace", "Data Science", "AI/ML", "Biotechnology", "Finance", "Marketing", "General"];
 
 const ProfilePage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -25,6 +28,8 @@ const ProfilePage = () => {
     school: "",
     grades: "",
     budget: "",
+    degree_type: "",
+    stream: "",
     interests: [] as string[],
     target_countries: [] as string[],
     extracurriculars: [] as string[],
@@ -38,6 +43,8 @@ const ProfilePage = () => {
         school: profile.school || "",
         grades: profile.grades || "",
         budget: profile.budget || "",
+        degree_type: (profile as any).degree_type || "",
+        stream: (profile as any).stream || "",
         interests: profile.interests || [],
         target_countries: profile.target_countries || [],
         extracurriculars: profile.extracurriculars || [],
@@ -45,7 +52,7 @@ const ProfilePage = () => {
     }
   }, [profile]);
 
-  if (authLoading || profileLoading) return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (authLoading || profileLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Navigate to="/auth" replace />;
 
   const toggleItem = (key: "interests" | "target_countries", item: string) => {
@@ -65,7 +72,7 @@ const ProfilePage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await updateProfile(form) || {};
+    const { error } = await updateProfile(form as any) || {};
     if (error) {
       toast({ title: "Error", description: "Failed to save profile", variant: "destructive" });
     } else {
@@ -76,10 +83,10 @@ const ProfilePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-8">
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 glow-border">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
             <GraduationCap className="h-7 w-7 text-primary" />
           </div>
           <h1 className="font-heading text-3xl font-bold gradient-text">Complete Your Profile</h1>
@@ -92,19 +99,43 @@ const ProfilePage = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label>Full Name</Label>
-                <Input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required className="bg-muted/50 border-border/50" />
+                <Input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required />
               </div>
               <div>
                 <Label>School / University</Label>
-                <Input value={form.school} onChange={e => setForm(p => ({ ...p, school: e.target.value }))} required className="bg-muted/50 border-border/50" />
+                <Input value={form.school} onChange={e => setForm(p => ({ ...p, school: e.target.value }))} required />
               </div>
               <div>
                 <Label>Grades (e.g. GPA 3.8, 95%, A-levels AAA)</Label>
-                <Input value={form.grades} onChange={e => setForm(p => ({ ...p, grades: e.target.value }))} required className="bg-muted/50 border-border/50" />
+                <Input value={form.grades} onChange={e => setForm(p => ({ ...p, grades: e.target.value }))} required />
               </div>
               <div>
                 <Label>Budget (annual tuition + living)</Label>
-                <Input value={form.budget} onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} placeholder="e.g. $30,000/year" className="bg-muted/50 border-border/50" />
+                <Input value={form.budget} onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} placeholder="e.g. $30,000/year" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader><CardTitle className="font-heading text-lg">Degree & Stream</CardTitle><CardDescription>What are you looking to study?</CardDescription></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Degree Type</Label>
+                <Select value={form.degree_type} onValueChange={v => setForm(p => ({ ...p, degree_type: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select degree type" /></SelectTrigger>
+                  <SelectContent>
+                    {DEGREE_OPTIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Stream / Specialization</Label>
+                <Select value={form.stream} onValueChange={v => setForm(p => ({ ...p, stream: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select stream" /></SelectTrigger>
+                  <SelectContent>
+                    {STREAM_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
@@ -149,7 +180,7 @@ const ProfilePage = () => {
             <CardHeader><CardTitle className="font-heading text-lg">Extracurriculars</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="flex gap-2">
-                <Input value={newExtra} onChange={e => setNewExtra(e.target.value)} placeholder="e.g. Debate Club President" className="bg-muted/50 border-border/50" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addExtra())} />
+                <Input value={newExtra} onChange={e => setNewExtra(e.target.value)} placeholder="e.g. Debate Club President" onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addExtra())} />
                 <Button type="button" size="icon" variant="outline" onClick={addExtra}><Plus className="h-4 w-4" /></Button>
               </div>
               <div className="flex flex-wrap gap-2">
