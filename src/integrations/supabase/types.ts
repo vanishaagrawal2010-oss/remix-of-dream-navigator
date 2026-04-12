@@ -77,6 +77,7 @@ export type Database = {
         Row: {
           budget: string | null
           created_at: string
+          degree_type: string | null
           extracted_facts: Json | null
           extracurriculars: string[] | null
           full_name: string | null
@@ -85,6 +86,7 @@ export type Database = {
           interests: string[] | null
           school: string | null
           sop_draft: string | null
+          stream: string | null
           target_countries: string[] | null
           updated_at: string
           user_id: string
@@ -92,6 +94,7 @@ export type Database = {
         Insert: {
           budget?: string | null
           created_at?: string
+          degree_type?: string | null
           extracted_facts?: Json | null
           extracurriculars?: string[] | null
           full_name?: string | null
@@ -100,6 +103,7 @@ export type Database = {
           interests?: string[] | null
           school?: string | null
           sop_draft?: string | null
+          stream?: string | null
           target_countries?: string[] | null
           updated_at?: string
           user_id: string
@@ -107,6 +111,7 @@ export type Database = {
         Update: {
           budget?: string | null
           created_at?: string
+          degree_type?: string | null
           extracted_facts?: Json | null
           extracurriculars?: string[] | null
           full_name?: string | null
@@ -115,6 +120,7 @@ export type Database = {
           interests?: string[] | null
           school?: string | null
           sop_draft?: string | null
+          stream?: string | null
           target_countries?: string[] | null
           updated_at?: string
           user_id?: string
