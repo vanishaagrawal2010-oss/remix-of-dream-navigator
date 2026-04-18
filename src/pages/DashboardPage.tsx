@@ -131,32 +131,64 @@ const DashboardPage = () => {
     const interests = profile.interests || [];
     const degreeType = (profile as any).degree_type || "";
     const stream = (profile as any).stream || "";
+    const quiz = ((profile as any).quiz_preferences || {}) as Record<string, string>;
+    const tier = (profile as any).grade_tier || deriveGradeTier(profile.grades);
+    const userTierRank = TIER_RANK[tier] ?? 2;
 
-    return ALL_UNIS
+    const scored = ALL_UNIS
       .filter(u => {
-        // Country filter: must match if user specified countries
+        // Country filter
         if (countries.length > 0 && !countries.includes(u.country)) return false;
+
+        // Stream/degree filter
+        if (degreeType && u.degree.toLowerCase() !== degreeType.toLowerCase()) return false;
+        if (stream) {
+          const matchesStream = u.stream.toLowerCase().includes(stream.toLowerCase()) ||
+            u.program.toLowerCase().includes(stream.toLowerCase());
+          const matchesInterest = interests.some(i =>
+            u.program.toLowerCase().includes(i.toLowerCase()) ||
+            u.stream.toLowerCase().includes(i.toLowerCase())
+          );
+          if (!matchesStream && !matchesInterest) return false;
+        }
+
+        // GRADE-TIER GATE: never show colleges harder than the student can realistically get into
+        const requiredTier = DIFFICULTY_MIN_TIER[u.difficulty];
+        if (userTierRank < requiredTier) return false;
+
+        // Quiz: budget — drop expensive colleges if fees are critical
+        if (quiz.fees_priority === "critical") {
+          const t = u.tuition.toLowerCase();
+          const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],|₹\d{2},/.test(t);
+          if (isExpensive && !t.includes("scholarship")) return false;
+        }
         return true;
       })
-      .filter(u => {
-        // Stream-specific matching
-        if (!degreeType && !stream && interests.length === 0) return true;
-        
-        const matchesDegree = !degreeType || u.degree.toLowerCase() === degreeType.toLowerCase();
-        const matchesStream = !stream || u.stream.toLowerCase().includes(stream.toLowerCase());
-        const matchesInterest = interests.length === 0 || interests.some(i => 
-          u.program.toLowerCase().includes(i.toLowerCase()) || 
-          u.stream.toLowerCase().includes(i.toLowerCase())
-        );
-        
-        // Must match degree if specified, AND (stream or interest)
-        if (degreeType && !matchesDegree) return false;
-        if (stream && !matchesStream && !matchesInterest) return false;
-        if (!stream && interests.length > 0 && !matchesInterest) return false;
-        
-        return true;
+      .map(u => {
+        // Personalised score
+        let score = u.match;
+        // Reward colleges close to the user's tier (avoid only super-easy if user is top)
+        const tierGap = userTierRank - DIFFICULTY_MIN_TIER[u.difficulty];
+        if (tierGap === 0) score += 8; // perfect fit
+        else if (tierGap === 1) score += 4;
+        else score -= tierGap * 2;
+
+        // Quiz preferences
+        if (quiz.campus_type && u.campus === quiz.campus_type) score += 5;
+        if (quiz.hostel_priority === "critical" && u.hostel === "Excellent") score += 6;
+        if (quiz.hostel_priority === "critical" && u.hostel === "Limited") score -= 8;
+        if (quiz.city_type === "metro" && /mumbai|delhi|bangalore|chennai|new york|london|singapore|tokyo|sydney|toronto|hong kong/i.test(u.city || "")) score += 4;
+        if (quiz.city_type === "small" && /pilani|kharagpur|warangal|roorkee|guwahati|manipal|vellore/i.test(u.city || "")) score += 4;
+        if (quiz.study_intensity === "intense" && u.difficulty === "Very Hard") score += 6;
+        if (quiz.study_intensity === "relaxed" && (u.difficulty === "Easy" || u.difficulty === "Moderate")) score += 5;
+        if (quiz.career_goal === "research" && u.ranking <= 100) score += 5;
+        if (quiz.career_goal === "industry" && /computer science|finance|business/i.test(u.stream)) score += 3;
+
+        return { ...u, match: Math.min(99, Math.max(40, Math.round(score))) };
       })
       .sort((a, b) => b.match - a.match);
+
+    return scored;
   }, [profile]);
 
   const unswiped = recommendations.filter(u => !swiped.has(u.name));
@@ -199,6 +231,21 @@ const DashboardPage = () => {
               </div>
             </div>
             <Link to="/profile"><Button size="sm">Complete Profile</Button></Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {isProfileComplete && !((profile as any)?.quiz_preferences?.fees_priority) && (
+        <Card className="glass-card border-accent/30 bg-accent/5">
+          <CardContent className="flex items-center justify-between p-6">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-accent" />
+              <div>
+                <p className="font-heading font-semibold">Take the 2-minute Aptitude Quiz</p>
+                <p className="text-sm text-muted-foreground">Unlock hyper-personalised recommendations based on your fees, hostel, city & career preferences</p>
+              </div>
+            </div>
+            <Link to="/quiz"><Button size="sm" variant="default">Start Quiz</Button></Link>
           </CardContent>
         </Card>
       )}
