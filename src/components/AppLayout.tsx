@@ -1,12 +1,13 @@
 import { Link, useLocation, Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, MessageSquare, LayoutDashboard, User, LogOut, Loader2, Map } from "lucide-react";
+import { GraduationCap, MessageSquare, LayoutDashboard, User, LogOut, Loader2, Map, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/roadmap", icon: Map, label: "Roadmap" },
+  { to: "/quiz", icon: Sparkles, label: "Aptitude Quiz" },
   { to: "/chat", icon: MessageSquare, label: "AI Counsellor" },
   { to: "/profile", icon: User, label: "Profile" },
 ];
