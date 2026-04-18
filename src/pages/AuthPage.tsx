@@ -16,7 +16,7 @@ const AuthPage = () => {
   const { toast } = useToast();
 
   if (authLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  if (user) return <Navigate to="/profile" replace />;
+  if (user) return <Navigate to="/quiz" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
