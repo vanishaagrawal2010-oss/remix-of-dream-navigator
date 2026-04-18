@@ -234,6 +234,7 @@ const DashboardPage = () => {
   };
 
   const profileCountries = profile?.target_countries || [];
+  const quizCompleted = Object.keys(((profile as any)?.quiz_preferences) || {}).length >= 8;
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
@@ -244,7 +245,7 @@ const DashboardPage = () => {
         </h1>
         <p className="mt-1 text-muted-foreground">
           {profileCountries.length > 0
-            ? `Showing colleges in ${profileCountries.join(", ")} · ${recommendations.length} matches`
+            ? `Showing colleges in ${profileCountries.join(", ")} · ${recommendations.length} matches${quizCompleted ? " · personalised by your quiz ✓" : ""}`
             : "Your personalised university recommendations"}
         </p>
       </div>
@@ -264,7 +265,7 @@ const DashboardPage = () => {
         </Card>
       )}
 
-      {isProfileComplete && !((profile as any)?.quiz_preferences?.fees_priority) && (
+      {isProfileComplete && !quizCompleted && (
         <Card className="glass-card border-accent/30 bg-accent/5">
           <CardContent className="flex items-center justify-between p-6">
             <div className="flex items-center gap-3">
@@ -330,9 +331,16 @@ const DashboardPage = () => {
             <Card className="glass-card">
               <CardContent className="p-8 text-center">
                 <GraduationCap className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
-                <p className="text-muted-foreground">Complete your profile to see personalised recommendations</p>
-                <p className="text-xs text-muted-foreground mt-1">Tell us your target countries, degree type, and stream</p>
-                <Link to="/profile"><Button className="mt-4" size="sm">Set Up Profile</Button></Link>
+                <p className="text-muted-foreground">
+                  {!isProfileComplete
+                    ? "Complete your profile so we can match you with the right colleges"
+                    : "We couldn't find colleges yet — try adding a target country or broadening your stream in your profile"}
+                </p>
+                <Link to={!isProfileComplete ? "/profile" : "/quiz"}>
+                  <Button className="mt-4" size="sm">
+                    {!isProfileComplete ? "Set Up Profile" : "Take Aptitude Quiz"}
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           ) : unswiped.length === 0 ? (
