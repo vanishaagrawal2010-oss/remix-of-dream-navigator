@@ -81,9 +81,11 @@ export type Database = {
           extracted_facts: Json | null
           extracurriculars: string[] | null
           full_name: string | null
+          grade_tier: string | null
           grades: string | null
           id: string
           interests: string[] | null
+          quiz_preferences: Json | null
           school: string | null
           sop_draft: string | null
           stream: string | null
@@ -98,9 +100,11 @@ export type Database = {
           extracted_facts?: Json | null
           extracurriculars?: string[] | null
           full_name?: string | null
+          grade_tier?: string | null
           grades?: string | null
           id?: string
           interests?: string[] | null
+          quiz_preferences?: Json | null
           school?: string | null
           sop_draft?: string | null
           stream?: string | null
@@ -115,9 +119,11 @@ export type Database = {
           extracted_facts?: Json | null
           extracurriculars?: string[] | null
           full_name?: string | null
+          grade_tier?: string | null
           grades?: string | null
           id?: string
           interests?: string[] | null
+          quiz_preferences?: Json | null
           school?: string | null
           sop_draft?: string | null
           stream?: string | null

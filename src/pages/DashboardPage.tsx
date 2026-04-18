@@ -6,72 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { GraduationCap, MapPin, DollarSign, Calendar, ExternalLink, MessageSquare, Sparkles, TrendingUp, Heart, X, BarChart3, Newspaper } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
-
-type University = {
-  name: string;
-  country: string;
-  program: string;
-  degree: string;
-  stream: string;
-  deadline: string;
-  scholarshipUrl: string;
-  match: number;
-  tuition: string;
-  acceptanceRate: string;
-  difficulty: "Easy" | "Moderate" | "Hard" | "Very Hard";
-  ranking: number;
-};
-
-const ALL_UNIS: University[] = [
-  // === INDIA ===
-  { name: "IIT Bombay", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.iitb.ac.in/", match: 95, tuition: "₹2,00,000/yr", acceptanceRate: "2%", difficulty: "Very Hard", ranking: 149 },
-  { name: "IIT Delhi", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jun 15, 2026", scholarshipUrl: "https://home.iitd.ac.in/", match: 93, tuition: "₹2,00,000/yr", acceptanceRate: "1.5%", difficulty: "Very Hard", ranking: 150 },
-  { name: "IIT Madras", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.iitm.ac.in/", match: 92, tuition: "₹2,00,000/yr", acceptanceRate: "2%", difficulty: "Very Hard", ranking: 227 },
-  { name: "IIT Kanpur", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.iitk.ac.in/", match: 90, tuition: "₹2,00,000/yr", acceptanceRate: "2.5%", difficulty: "Very Hard", ranking: 278 },
-  { name: "BITS Pilani", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jul 1, 2026", scholarshipUrl: "https://www.bits-pilani.ac.in/", match: 87, tuition: "₹5,00,000/yr", acceptanceRate: "5%", difficulty: "Hard", ranking: 450 },
-  { name: "NIT Trichy", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jun 20, 2026", scholarshipUrl: "https://www.nitt.edu/", match: 82, tuition: "₹1,50,000/yr", acceptanceRate: "8%", difficulty: "Hard", ranking: 600 },
-  { name: "NIT Warangal", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jun 20, 2026", scholarshipUrl: "https://www.nitw.ac.in/", match: 80, tuition: "₹1,50,000/yr", acceptanceRate: "10%", difficulty: "Hard", ranking: 650 },
-  { name: "VIT Vellore", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Apr 30, 2026", scholarshipUrl: "https://vit.ac.in/", match: 78, tuition: "₹3,50,000/yr", acceptanceRate: "30%", difficulty: "Moderate", ranking: 800 },
-  { name: "SRM University", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "May 15, 2026", scholarshipUrl: "https://www.srmist.edu.in/", match: 75, tuition: "₹3,00,000/yr", acceptanceRate: "45%", difficulty: "Moderate", ranking: 900 },
-  { name: "Manipal Institute of Technology", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "May 1, 2026", scholarshipUrl: "https://manipal.edu/mit.html", match: 76, tuition: "₹4,00,000/yr", acceptanceRate: "35%", difficulty: "Moderate", ranking: 850 },
-  { name: "Thapar University", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "May 20, 2026", scholarshipUrl: "https://www.thapar.edu/", match: 73, tuition: "₹2,80,000/yr", acceptanceRate: "40%", difficulty: "Moderate", ranking: 950 },
-  { name: "Amity University", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.amity.edu/", match: 65, tuition: "₹3,00,000/yr", acceptanceRate: "70%", difficulty: "Easy", ranking: 1200 },
-  { name: "Lovely Professional University", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jul 15, 2026", scholarshipUrl: "https://www.lpu.in/", match: 62, tuition: "₹2,50,000/yr", acceptanceRate: "75%", difficulty: "Easy", ranking: 1400 },
-  { name: "Chandigarh University", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jul 10, 2026", scholarshipUrl: "https://www.cuchd.in/", match: 64, tuition: "₹2,20,000/yr", acceptanceRate: "65%", difficulty: "Easy", ranking: 1100 },
-  { name: "Shiv Nadar University", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "May 31, 2026", scholarshipUrl: "https://snu.edu.in/", match: 77, tuition: "₹5,50,000/yr", acceptanceRate: "25%", difficulty: "Moderate", ranking: 700 },
-  { name: "IIIT Hyderabad", country: "India", program: "Computer Science", degree: "BTech", stream: "Computer Science", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.iiit.ac.in/", match: 85, tuition: "₹3,00,000/yr", acceptanceRate: "4%", difficulty: "Hard", ranking: 500 },
-
-  // === USA ===
-  { name: "MIT", country: "USA", program: "Computer Science", degree: "BTech", stream: "Computer Science", deadline: "Jan 1, 2026", scholarshipUrl: "https://sfs.mit.edu/", match: 95, tuition: "$57,590/yr", acceptanceRate: "3.9%", difficulty: "Very Hard", ranking: 1 },
-  { name: "Stanford University", country: "USA", program: "Computer Science", degree: "MS", stream: "Computer Science", deadline: "Jan 5, 2026", scholarshipUrl: "https://financialaid.stanford.edu/", match: 92, tuition: "$56,169/yr", acceptanceRate: "4.3%", difficulty: "Very Hard", ranking: 3 },
-  { name: "Carnegie Mellon", country: "USA", program: "Computer Science", degree: "BTech", stream: "Computer Science", deadline: "Jan 2, 2026", scholarshipUrl: "https://www.cmu.edu/sfs/", match: 90, tuition: "$58,924/yr", acceptanceRate: "13.5%", difficulty: "Hard", ranking: 5 },
-  { name: "Georgia Tech", country: "USA", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Feb 1, 2026", scholarshipUrl: "https://finaid.gatech.edu/", match: 86, tuition: "$33,020/yr", acceptanceRate: "17%", difficulty: "Hard", ranking: 12 },
-  { name: "Purdue University", country: "USA", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Feb 1, 2026", scholarshipUrl: "https://www.purdue.edu/financialaid/", match: 80, tuition: "$31,104/yr", acceptanceRate: "53%", difficulty: "Moderate", ranking: 43 },
-  { name: "Arizona State University", country: "USA", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Mar 1, 2026", scholarshipUrl: "https://students.asu.edu/scholarships", match: 72, tuition: "$29,000/yr", acceptanceRate: "88%", difficulty: "Easy", ranking: 185 },
-  { name: "University of Illinois", country: "USA", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jan 15, 2026", scholarshipUrl: "https://osfa.illinois.edu/", match: 84, tuition: "$34,316/yr", acceptanceRate: "45%", difficulty: "Moderate", ranking: 33 },
-
-  // === UK ===
-  { name: "University of Oxford", country: "UK", program: "Engineering", degree: "BS", stream: "Mechanical", deadline: "Oct 15, 2025", scholarshipUrl: "https://www.ox.ac.uk/", match: 88, tuition: "£37,510/yr", acceptanceRate: "15.4%", difficulty: "Hard", ranking: 4 },
-  { name: "University of Cambridge", country: "UK", program: "Engineering", degree: "BS", stream: "Mechanical", deadline: "Oct 15, 2025", scholarshipUrl: "https://www.cambridgetrust.org/", match: 87, tuition: "£35,517/yr", acceptanceRate: "21%", difficulty: "Hard", ranking: 2 },
-  { name: "Imperial College London", country: "UK", program: "Engineering", degree: "BS", stream: "Mechanical", deadline: "Jan 15, 2026", scholarshipUrl: "https://www.imperial.ac.uk/", match: 85, tuition: "£35,100/yr", acceptanceRate: "14%", difficulty: "Hard", ranking: 6 },
-  { name: "University of Manchester", country: "UK", program: "Engineering", degree: "BS", stream: "Mechanical", deadline: "Jan 25, 2026", scholarshipUrl: "https://www.manchester.ac.uk/", match: 78, tuition: "£27,000/yr", acceptanceRate: "55%", difficulty: "Moderate", ranking: 34 },
-  { name: "University of Leeds", country: "UK", program: "Engineering", degree: "BS", stream: "Mechanical", deadline: "Jan 25, 2026", scholarshipUrl: "https://www.leeds.ac.uk/", match: 73, tuition: "£25,750/yr", acceptanceRate: "72%", difficulty: "Moderate", ranking: 75 },
-
-  // === Canada ===
-  { name: "University of Toronto", country: "Canada", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jan 15, 2026", scholarshipUrl: "https://future.utoronto.ca/", match: 85, tuition: "CAD $57,020/yr", acceptanceRate: "43%", difficulty: "Moderate", ranking: 18 },
-  { name: "University of Waterloo", country: "Canada", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Feb 1, 2026", scholarshipUrl: "https://uwaterloo.ca/", match: 83, tuition: "CAD $52,000/yr", acceptanceRate: "52%", difficulty: "Moderate", ranking: 112 },
-  { name: "University of British Columbia", country: "Canada", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jan 15, 2026", scholarshipUrl: "https://www.ubc.ca/", match: 81, tuition: "CAD $44,091/yr", acceptanceRate: "46%", difficulty: "Moderate", ranking: 35 },
-
-  // === Germany ===
-  { name: "TU Munich", country: "Germany", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jan 15, 2026", scholarshipUrl: "https://www.tum.de/", match: 82, tuition: "€146/semester", acceptanceRate: "8%", difficulty: "Hard", ranking: 30 },
-  { name: "RWTH Aachen", country: "Germany", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Mar 1, 2026", scholarshipUrl: "https://www.rwth-aachen.de/", match: 79, tuition: "€300/semester", acceptanceRate: "30%", difficulty: "Moderate", ranking: 87 },
-
-  // === Others ===
-  { name: "ETH Zurich", country: "Switzerland", program: "Engineering", degree: "MS", stream: "Computer Science", deadline: "Dec 15, 2025", scholarshipUrl: "https://ethz.ch/", match: 89, tuition: "CHF 1,460/yr", acceptanceRate: "27%", difficulty: "Hard", ranking: 7 },
-  { name: "NUS", country: "Singapore", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Nov 30, 2025", scholarshipUrl: "https://www.nus.edu.sg/", match: 83, tuition: "SGD $37,550/yr", acceptanceRate: "25%", difficulty: "Moderate", ranking: 8 },
-  { name: "University of Melbourne", country: "Australia", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Oct 31, 2025", scholarshipUrl: "https://scholarships.unimelb.edu.au/", match: 80, tuition: "AUD $46,000/yr", acceptanceRate: "35%", difficulty: "Moderate", ranking: 14 },
-  { name: "University of Tokyo", country: "Japan", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Dec 1, 2025", scholarshipUrl: "https://www.u-tokyo.ac.jp/en/", match: 78, tuition: "¥535,800/yr", acceptanceRate: "34%", difficulty: "Hard", ranking: 28 },
-];
+import { ALL_UNIS, DIFFICULTY_MIN_TIER, TIER_RANK, deriveGradeTier, type University } from "@/data/universities";
 
 type NewsItem = {
   title: string;
@@ -94,8 +29,8 @@ const NEWS_ITEMS: NewsItem[] = [
   { title: "SRM University introduces 100% scholarship for toppers", date: "Mar 31, 2026", uni: "SRM University", tag: "Scholarship", url: "https://www.srmist.edu.in/admissions", source: "SRM Admissions" },
   { title: "Purdue announces new mechanical engineering lab expansion", date: "Mar 29, 2026", uni: "Purdue University", tag: "Infrastructure", url: "https://www.purdue.edu/newsroom/", source: "Purdue News" },
   { title: "BITS Pilani BITSAT 2026 registration dates announced", date: "Mar 28, 2026", uni: "BITS Pilani", tag: "Admissions", url: "https://www.bitsadmission.com/", source: "BITS Admissions" },
-  { title: "Cambridge introduces flexible entry for engineering", date: "Mar 28, 2026", uni: "University of Cambridge", tag: "Admissions", url: "https://www.cam.ac.uk/news", source: "Cambridge News" },
-  { title: "Georgia Tech mechanical engineering ranked #2 in US", date: "Mar 26, 2026", uni: "Georgia Tech", tag: "Rankings", url: "https://news.gatech.edu/", source: "GT News" },
+  { title: "AIIMS Delhi NEET-UG 2026 cutoff trends released", date: "Mar 27, 2026", uni: "AIIMS Delhi", tag: "Admissions", url: "https://www.aiims.edu/", source: "AIIMS News" },
+  { title: "NLSIU Bangalore CLAT 2026 results expected next week", date: "Mar 27, 2026", uni: "NLSIU Bangalore", tag: "Admissions", url: "https://consortiumofnlus.ac.in/", source: "CLAT Consortium" },
   { title: "Manipal MIT opens applications for BTech lateral entry", date: "Mar 25, 2026", uni: "Manipal Institute of Technology", tag: "Admissions", url: "https://manipal.edu/mit/admissions.html", source: "Manipal Admissions" },
 ];
 
@@ -196,32 +131,64 @@ const DashboardPage = () => {
     const interests = profile.interests || [];
     const degreeType = (profile as any).degree_type || "";
     const stream = (profile as any).stream || "";
+    const quiz = ((profile as any).quiz_preferences || {}) as Record<string, string>;
+    const tier = (profile as any).grade_tier || deriveGradeTier(profile.grades);
+    const userTierRank = TIER_RANK[tier] ?? 2;
 
-    return ALL_UNIS
+    const scored = ALL_UNIS
       .filter(u => {
-        // Country filter: must match if user specified countries
+        // Country filter
         if (countries.length > 0 && !countries.includes(u.country)) return false;
+
+        // Stream/degree filter
+        if (degreeType && u.degree.toLowerCase() !== degreeType.toLowerCase()) return false;
+        if (stream) {
+          const matchesStream = u.stream.toLowerCase().includes(stream.toLowerCase()) ||
+            u.program.toLowerCase().includes(stream.toLowerCase());
+          const matchesInterest = interests.some(i =>
+            u.program.toLowerCase().includes(i.toLowerCase()) ||
+            u.stream.toLowerCase().includes(i.toLowerCase())
+          );
+          if (!matchesStream && !matchesInterest) return false;
+        }
+
+        // GRADE-TIER GATE: never show colleges harder than the student can realistically get into
+        const requiredTier = DIFFICULTY_MIN_TIER[u.difficulty];
+        if (userTierRank < requiredTier) return false;
+
+        // Quiz: budget — drop expensive colleges if fees are critical
+        if (quiz.fees_priority === "critical") {
+          const t = u.tuition.toLowerCase();
+          const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],|₹\d{2},/.test(t);
+          if (isExpensive && !t.includes("scholarship")) return false;
+        }
         return true;
       })
-      .filter(u => {
-        // Stream-specific matching
-        if (!degreeType && !stream && interests.length === 0) return true;
-        
-        const matchesDegree = !degreeType || u.degree.toLowerCase() === degreeType.toLowerCase();
-        const matchesStream = !stream || u.stream.toLowerCase().includes(stream.toLowerCase());
-        const matchesInterest = interests.length === 0 || interests.some(i => 
-          u.program.toLowerCase().includes(i.toLowerCase()) || 
-          u.stream.toLowerCase().includes(i.toLowerCase())
-        );
-        
-        // Must match degree if specified, AND (stream or interest)
-        if (degreeType && !matchesDegree) return false;
-        if (stream && !matchesStream && !matchesInterest) return false;
-        if (!stream && interests.length > 0 && !matchesInterest) return false;
-        
-        return true;
+      .map(u => {
+        // Personalised score
+        let score = u.match;
+        // Reward colleges close to the user's tier (avoid only super-easy if user is top)
+        const tierGap = userTierRank - DIFFICULTY_MIN_TIER[u.difficulty];
+        if (tierGap === 0) score += 8; // perfect fit
+        else if (tierGap === 1) score += 4;
+        else score -= tierGap * 2;
+
+        // Quiz preferences
+        if (quiz.campus_type && u.campus === quiz.campus_type) score += 5;
+        if (quiz.hostel_priority === "critical" && u.hostel === "Excellent") score += 6;
+        if (quiz.hostel_priority === "critical" && u.hostel === "Limited") score -= 8;
+        if (quiz.city_type === "metro" && /mumbai|delhi|bangalore|chennai|new york|london|singapore|tokyo|sydney|toronto|hong kong/i.test(u.city || "")) score += 4;
+        if (quiz.city_type === "small" && /pilani|kharagpur|warangal|roorkee|guwahati|manipal|vellore/i.test(u.city || "")) score += 4;
+        if (quiz.study_intensity === "intense" && u.difficulty === "Very Hard") score += 6;
+        if (quiz.study_intensity === "relaxed" && (u.difficulty === "Easy" || u.difficulty === "Moderate")) score += 5;
+        if (quiz.career_goal === "research" && u.ranking <= 100) score += 5;
+        if (quiz.career_goal === "industry" && /computer science|finance|business/i.test(u.stream)) score += 3;
+
+        return { ...u, match: Math.min(99, Math.max(40, Math.round(score))) };
       })
       .sort((a, b) => b.match - a.match);
+
+    return scored;
   }, [profile]);
 
   const unswiped = recommendations.filter(u => !swiped.has(u.name));
@@ -264,6 +231,21 @@ const DashboardPage = () => {
               </div>
             </div>
             <Link to="/profile"><Button size="sm">Complete Profile</Button></Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {isProfileComplete && !((profile as any)?.quiz_preferences?.fees_priority) && (
+        <Card className="glass-card border-accent/30 bg-accent/5">
+          <CardContent className="flex items-center justify-between p-6">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-accent" />
+              <div>
+                <p className="font-heading font-semibold">Take the 2-minute Aptitude Quiz</p>
+                <p className="text-sm text-muted-foreground">Unlock hyper-personalised recommendations based on your fees, hostel, city & career preferences</p>
+              </div>
+            </div>
+            <Link to="/quiz"><Button size="sm" variant="default">Start Quiz</Button></Link>
           </CardContent>
         </Card>
       )}
