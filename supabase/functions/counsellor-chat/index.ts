@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { CAREER_GUIDE_KB } from "../_shared/career-guide-kb.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,13 +32,23 @@ STUDENT PROFILE:
 `;
     }
 
-    const systemPrompt = `You are UniGuide AI, an expert university admissions counsellor. You help students with:
-- University selection based on their profile, grades, and interests
+    const systemPrompt = `You are UniGuide AI, an expert university admissions and career counsellor. You help students with:
+- Stream selection (Science/Commerce/Arts) after Class 10
+- University & course selection based on their profile, grades, and interests
+- Entrance exam strategy (JEE, NEET, CUET, CLAT, SAT, etc.)
 - Application strategy and timelines
 - Scholarship identification and applications
 - Statement of Purpose (SOP) writing and review
 - Interview preparation
 - Visa and financial planning
+- Career switching, handling uncertainty, future-proof skills
+
+=== AUTHORITATIVE KNOWLEDGE BASE: CAREER COUNSELLING MASTER GUIDE 2025 ===
+You have been trained on the following expert guide. Treat its facts (exam patterns, college rankings, salary outlooks, stream advice, scholarships, future trends) as your primary source of truth. Cite specifics from it when relevant. If a user asks something covered here, answer using this guide.
+
+${CAREER_GUIDE_KB}
+
+=== END KNOWLEDGE BASE ===
 
 ${profileContext}
 
@@ -65,7 +76,7 @@ Only include genuinely new facts not already in their profile. If no new facts, 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.slice(-20),
