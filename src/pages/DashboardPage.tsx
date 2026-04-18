@@ -135,60 +135,89 @@ const DashboardPage = () => {
     const tier = (profile as any).grade_tier || deriveGradeTier(profile.grades);
     const userTierRank = TIER_RANK[tier] ?? 2;
 
-    const scored = ALL_UNIS
-      .filter(u => {
-        // Country filter
-        if (countries.length > 0 && !countries.includes(u.country)) return false;
+    // Stream synonyms (e.g. Data Science → Computer Science)
+    const streamSynonyms: Record<string, string[]> = {
+      "data science": ["computer science", "ai/ml", "information technology"],
+      "ai/ml": ["computer science", "data science"],
+      "information technology": ["computer science"],
+      "electronics": ["electrical", "computer science"],
+      "aerospace": ["mechanical"],
+      "biotechnology": ["chemical"],
+      "finance": ["business", "general"],
+      "marketing": ["business", "general"],
+    };
+    const streamMatchSet = new Set<string>([stream.toLowerCase()]);
+    (streamSynonyms[stream.toLowerCase()] || []).forEach(s => streamMatchSet.add(s));
 
-        // Stream/degree filter
-        if (degreeType && u.degree.toLowerCase() !== degreeType.toLowerCase()) return false;
-        if (stream) {
-          const matchesStream = u.stream.toLowerCase().includes(stream.toLowerCase()) ||
-            u.program.toLowerCase().includes(stream.toLowerCase());
-          const matchesInterest = interests.some(i =>
-            u.program.toLowerCase().includes(i.toLowerCase()) ||
-            u.stream.toLowerCase().includes(i.toLowerCase())
-          );
-          if (!matchesStream && !matchesInterest) return false;
-        }
+    const matchesStreamFn = (u: typeof ALL_UNIS[number]) => {
+      if (!stream) return true;
+      const us = u.stream.toLowerCase();
+      const up = u.program.toLowerCase();
+      for (const s of streamMatchSet) {
+        if (us.includes(s) || up.includes(s)) return true;
+      }
+      return interests.some(i =>
+        u.program.toLowerCase().includes(i.toLowerCase()) ||
+        u.stream.toLowerCase().includes(i.toLowerCase())
+      );
+    };
 
-        // GRADE-TIER GATE: never show colleges harder than the student can realistically get into
-        const requiredTier = DIFFICULTY_MIN_TIER[u.difficulty];
-        if (userTierRank < requiredTier) return false;
+    const scoreFn = (u: typeof ALL_UNIS[number]) => {
+      let score = u.match;
+      const tierGap = userTierRank - DIFFICULTY_MIN_TIER[u.difficulty];
+      if (tierGap === 0) score += 10;
+      else if (tierGap === 1) score += 5;
+      else if (tierGap < 0) score -= Math.abs(tierGap) * 15; // big penalty for unreachable
 
-        // Quiz: budget — drop expensive colleges if fees are critical
-        if (quiz.fees_priority === "critical") {
-          const t = u.tuition.toLowerCase();
-          const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],|₹\d{2},/.test(t);
-          if (isExpensive && !t.includes("scholarship")) return false;
-        }
-        return true;
-      })
-      .map(u => {
-        // Personalised score
-        let score = u.match;
-        // Reward colleges close to the user's tier (avoid only super-easy if user is top)
-        const tierGap = userTierRank - DIFFICULTY_MIN_TIER[u.difficulty];
-        if (tierGap === 0) score += 8; // perfect fit
-        else if (tierGap === 1) score += 4;
-        else score -= tierGap * 2;
+      // QUIZ — high weight (this is the main personalisation signal)
+      if (quiz.campus_type && u.campus === quiz.campus_type) score += 8;
+      if (quiz.hostel_priority === "critical") {
+        if (u.hostel === "Excellent") score += 10;
+        else if (u.hostel === "Limited") score -= 12;
+      }
+      if (quiz.city_type === "metro" && /mumbai|delhi|bangalore|chennai|new york|london|singapore|tokyo|sydney|toronto|hong kong/i.test(u.city || "")) score += 6;
+      if (quiz.city_type === "small" && /pilani|kharagpur|warangal|roorkee|guwahati|manipal|vellore|patiala|tiruchirappalli/i.test(u.city || "")) score += 6;
+      if (quiz.study_intensity === "intense" && u.difficulty === "Very Hard") score += 8;
+      if (quiz.study_intensity === "relaxed" && (u.difficulty === "Easy" || u.difficulty === "Moderate")) score += 7;
+      if (quiz.career_goal === "research" && u.ranking <= 100) score += 6;
+      if (quiz.career_goal === "industry" && /computer science|finance|business/i.test(u.stream)) score += 5;
+      if (quiz.fees_priority === "critical") {
+        const t = u.tuition.toLowerCase();
+        const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d/.test(t);
+        if (isExpensive) score -= 18;
+        const isCheap = /€\d|chf|₹[12],|₹\d\d,\d{3}/.test(t);
+        if (isCheap) score += 8;
+      }
+      return Math.min(99, Math.max(35, Math.round(score)));
+    };
 
-        // Quiz preferences
-        if (quiz.campus_type && u.campus === quiz.campus_type) score += 5;
-        if (quiz.hostel_priority === "critical" && u.hostel === "Excellent") score += 6;
-        if (quiz.hostel_priority === "critical" && u.hostel === "Limited") score -= 8;
-        if (quiz.city_type === "metro" && /mumbai|delhi|bangalore|chennai|new york|london|singapore|tokyo|sydney|toronto|hong kong/i.test(u.city || "")) score += 4;
-        if (quiz.city_type === "small" && /pilani|kharagpur|warangal|roorkee|guwahati|manipal|vellore/i.test(u.city || "")) score += 4;
-        if (quiz.study_intensity === "intense" && u.difficulty === "Very Hard") score += 6;
-        if (quiz.study_intensity === "relaxed" && (u.difficulty === "Easy" || u.difficulty === "Moderate")) score += 5;
-        if (quiz.career_goal === "research" && u.ranking <= 100) score += 5;
-        if (quiz.career_goal === "industry" && /computer science|finance|business/i.test(u.stream)) score += 3;
+    // PASS 1: strict — country + degree + stream + tier-reachable
+    const strict = ALL_UNIS.filter(u => {
+      if (countries.length > 0 && !countries.includes(u.country)) return false;
+      if (degreeType && u.degree.toLowerCase() !== degreeType.toLowerCase()) return false;
+      if (!matchesStreamFn(u)) return false;
+      if (userTierRank < DIFFICULTY_MIN_TIER[u.difficulty]) return false;
+      return true;
+    });
+    if (strict.length >= 3) {
+      return strict.map(u => ({ ...u, match: scoreFn(u) })).sort((a, b) => b.match - a.match);
+    }
 
-        return { ...u, match: Math.min(99, Math.max(40, Math.round(score))) };
-      })
-      .sort((a, b) => b.match - a.match);
+    // PASS 2: relaxed — drop the tier gate (still respect country/degree/stream)
+    const relaxed = ALL_UNIS.filter(u => {
+      if (countries.length > 0 && !countries.includes(u.country)) return false;
+      if (degreeType && u.degree.toLowerCase() !== degreeType.toLowerCase()) return false;
+      return matchesStreamFn(u);
+    });
+    if (relaxed.length >= 3) {
+      return relaxed.map(u => ({ ...u, match: scoreFn(u) })).sort((a, b) => b.match - a.match);
+    }
 
-    return scored;
+    // PASS 3: very relaxed — only country
+    const fallback = ALL_UNIS.filter(u =>
+      countries.length === 0 || countries.includes(u.country)
+    );
+    return fallback.map(u => ({ ...u, match: scoreFn(u) })).sort((a, b) => b.match - a.match);
   }, [profile]);
 
   const unswiped = recommendations.filter(u => !swiped.has(u.name));
@@ -205,6 +234,7 @@ const DashboardPage = () => {
   };
 
   const profileCountries = profile?.target_countries || [];
+  const quizCompleted = Object.keys(((profile as any)?.quiz_preferences) || {}).length >= 8;
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
@@ -215,7 +245,7 @@ const DashboardPage = () => {
         </h1>
         <p className="mt-1 text-muted-foreground">
           {profileCountries.length > 0
-            ? `Showing colleges in ${profileCountries.join(", ")} · ${recommendations.length} matches`
+            ? `Showing colleges in ${profileCountries.join(", ")} · ${recommendations.length} matches${quizCompleted ? " · personalised by your quiz ✓" : ""}`
             : "Your personalised university recommendations"}
         </p>
       </div>
@@ -235,7 +265,7 @@ const DashboardPage = () => {
         </Card>
       )}
 
-      {isProfileComplete && !((profile as any)?.quiz_preferences?.fees_priority) && (
+      {isProfileComplete && !quizCompleted && (
         <Card className="glass-card border-accent/30 bg-accent/5">
           <CardContent className="flex items-center justify-between p-6">
             <div className="flex items-center gap-3">
@@ -301,9 +331,16 @@ const DashboardPage = () => {
             <Card className="glass-card">
               <CardContent className="p-8 text-center">
                 <GraduationCap className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
-                <p className="text-muted-foreground">Complete your profile to see personalised recommendations</p>
-                <p className="text-xs text-muted-foreground mt-1">Tell us your target countries, degree type, and stream</p>
-                <Link to="/profile"><Button className="mt-4" size="sm">Set Up Profile</Button></Link>
+                <p className="text-muted-foreground">
+                  {!isProfileComplete
+                    ? "Complete your profile so we can match you with the right colleges"
+                    : "We couldn't find colleges yet — try adding a target country or broadening your stream in your profile"}
+                </p>
+                <Link to={!isProfileComplete ? "/profile" : "/quiz"}>
+                  <Button className="mt-4" size="sm">
+                    {!isProfileComplete ? "Set Up Profile" : "Take Aptitude Quiz"}
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           ) : unswiped.length === 0 ? (

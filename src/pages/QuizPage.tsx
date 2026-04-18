@@ -110,13 +110,17 @@ const QUESTIONS: Question[] = [
 ];
 
 const QuizPage = () => {
-  const { profile, updateProfile } = useProfile();
+  const { profile, loading: profileLoading, updateProfile } = useProfile();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [retaking, setRetaking] = useState(false);
+
+  const savedQuiz = ((profile as any)?.quiz_preferences || {}) as Record<string, string>;
+  const hasCompleted = Object.keys(savedQuiz).length >= QUESTIONS.length;
 
   const current = QUESTIONS[currentIndex];
   const progress = ((currentIndex + 1) / QUESTIONS.length) * 100;
@@ -145,6 +149,47 @@ const QuizPage = () => {
     }
     setSubmitting(false);
   };
+
+  if (profileLoading) {
+    return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  // Already completed → show summary + retake option
+  if (hasCompleted && !retaking && !done) {
+    const labelFor = (qid: string, val: string) =>
+      QUESTIONS.find(q => q.id === qid)?.options.find(o => o.value === val)?.label || val;
+    return (
+      <div className="min-h-screen p-4 md:p-8">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
+              <CheckCircle2 className="h-7 w-7 text-primary" />
+            </div>
+            <h1 className="font-heading text-3xl font-bold gradient-text">Aptitude Quiz — Completed ✓</h1>
+            <p className="mt-2 text-muted-foreground">Your recommendations are personalised using these answers.</p>
+          </div>
+          <Card className="glass-card mb-4">
+            <CardContent className="p-6 space-y-3">
+              {QUESTIONS.map(q => (
+                <div key={q.id} className="border-b border-border pb-2 last:border-0">
+                  <p className="text-xs text-muted-foreground">{q.text}</p>
+                  <p className="text-sm font-medium mt-0.5">{labelFor(q.id, savedQuiz[q.id])}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => navigate("/dashboard")}>
+              View Dashboard
+            </Button>
+            <Button className="flex-1" onClick={() => { setRetaking(true); setAnswers({}); setCurrentIndex(0); }}>
+              <Sparkles className="h-4 w-4 mr-2" /> Retake Quiz
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (done) {
     return (
