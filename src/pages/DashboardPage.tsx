@@ -261,16 +261,17 @@ const DashboardPage = () => {
       )}
 
       {isProfileComplete && !quizCompleted && (
-        <Card className="glass-card border-accent/30 bg-accent/5">
+        <Card className="glass-card">
           <CardContent className="flex items-center justify-between p-6">
             <div className="flex items-center gap-3">
-              <Sparkles className="h-5 w-5 text-accent" />
+              <Sparkles className="h-5 w-5 text-primary" strokeWidth={1.25} />
               <div>
-                <p className="font-heading font-semibold">Take the 2-minute Aptitude Quiz</p>
-                <p className="text-sm text-muted-foreground">Unlock hyper-personalised recommendations based on your fees, hostel, city & career preferences</p>
+                <p className="label-mono text-muted-foreground mb-1">Step 02 · The Aptitude</p>
+                <p className="font-heading text-lg">A two-minute conversation about who you are.</p>
+                <p className="text-sm text-muted-foreground mt-0.5">Eight questions on budget, hostel, city and career — used to refine every recommendation we make.</p>
               </div>
             </div>
-            <Link to="/quiz"><Button size="sm" variant="default">Start Quiz</Button></Link>
+            <Link to="/quiz"><Button size="sm">Begin the quiz</Button></Link>
           </CardContent>
         </Card>
       )}
