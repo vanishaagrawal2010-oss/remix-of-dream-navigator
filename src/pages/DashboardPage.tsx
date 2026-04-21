@@ -226,19 +226,22 @@ const DashboardPage = () => {
   };
 
   const profileCountries = profile?.target_countries || [];
-  const quizCompleted = Object.keys(((profile as any)?.quiz_preferences) || {}).length >= 8;
+  const quizPrefs = ((profile as any)?.quiz_preferences || {}) as Record<string, string>;
+  // Tolerant: completed if there are at least a few meaningful answers
+  const quizCompleted = Object.values(quizPrefs).filter(Boolean).length >= 5;
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="font-heading text-3xl font-bold">
-          Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""} 👋
+        <p className="label-mono text-muted-foreground mb-2">The Atelier · Your Dashboard</p>
+        <h1 className="font-heading text-4xl md:text-5xl font-medium tracking-tight">
+          Good to see you{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}.
         </h1>
-        <p className="mt-1 text-muted-foreground">
+        <p className="mt-3 text-muted-foreground max-w-2xl">
           {profileCountries.length > 0
-            ? `Showing colleges in ${profileCountries.join(", ")} · ${recommendations.length} matches${quizCompleted ? " · personalised by your quiz ✓" : ""}`
-            : "Your personalised university recommendations"}
+            ? `A curated selection across ${profileCountries.join(", ")} — ${recommendations.length} institutions${quizCompleted ? ", refined by your aptitude quiz." : "."}`
+            : "A handcrafted shortlist of institutions chosen for who you are, not who the algorithm thinks you should be."}
         </p>
       </div>
 
@@ -328,13 +331,15 @@ const DashboardPage = () => {
                     ? "Complete your profile so we can match you with the right colleges"
                     : !((profile as any)?.stream) || !((profile as any)?.degree_type)
                       ? "Pick your degree type and stream in your profile so we can recommend matching colleges"
-                      : !quizCompleted
-                        ? "Take the aptitude quiz to unlock personalised recommendations"
-                        : "No colleges match your strict filters yet — try adding more target countries or relaxing the hostel/fees-critical answers in the quiz"}
+                      : quizCompleted
+                        ? "No colleges fit your strict criteria. Try adding more target countries, broadening your stream, or softening the 'critical' answers in the quiz."
+                        : "Take the aptitude quiz to unlock personalised recommendations"}
                 </p>
-                <Link to={!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type) ? "/profile" : "/quiz"}>
+                <Link to={!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type) ? "/profile" : quizCompleted ? "/profile" : "/quiz"}>
                   <Button className="mt-4" size="sm">
-                    {!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type) ? "Edit Profile" : "Take Aptitude Quiz"}
+                    {!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type)
+                      ? "Refine your profile"
+                      : quizCompleted ? "Adjust your profile" : "Begin the aptitude quiz"}
                   </Button>
                 </Link>
               </CardContent>
