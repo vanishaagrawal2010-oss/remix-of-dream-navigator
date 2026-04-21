@@ -135,6 +135,11 @@ const DashboardPage = () => {
     const tier = (profile as any).grade_tier || deriveGradeTier(profile.grades);
     const userTierRank = TIER_RANK[tier] ?? 2;
 
+    // Undergrad bachelor's degrees are equivalent across countries (BS = BTech = BE)
+    const undergradEquivalents = new Set(["bs", "btech", "be", "b.tech", "b.e"]);
+    const isUndergradEquiv = (a: string, b: string) =>
+      undergradEquivalents.has(a.toLowerCase()) && undergradEquivalents.has(b.toLowerCase());
+
     // Stream synonyms (e.g. Data Science → Computer Science)
     const streamSynonyms: Record<string, string[]> = {
       "data science": ["computer science", "ai/ml", "information technology"],
@@ -195,7 +200,10 @@ const DashboardPage = () => {
 
     const matches = ALL_UNIS.filter(u => {
       if (countries.length > 0 && !countries.includes(u.country)) return false;
-      if (degreeType && u.degree.toLowerCase() !== degreeType.toLowerCase()) return false;
+      if (degreeType) {
+        const same = u.degree.toLowerCase() === degreeType.toLowerCase();
+        if (!same && !isUndergradEquiv(u.degree, degreeType)) return false;
+      }
       if (!matchesStreamFn(u)) return false;
       // Quiz HARD filters
       if (hostelCritical && (u.hostel === "Limited" || !u.hostel)) return false;
@@ -204,8 +212,15 @@ const DashboardPage = () => {
         const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],\d{2},\d{3}|₹\d\d,\d{2},\d{3}/.test(t);
         if (isExpensive) return false;
       }
-      // Tier gate: only reachable colleges (with 1-tier stretch allowed)
-      if (userTierRank + 1 < DIFFICULTY_MIN_TIER[u.difficulty]) return false;
+      // Tier gate: only block colleges that are clearly out of reach.
+      // Low-tier students still see Hard colleges as stretch picks (only Very Hard is hidden).
+      // Higher tiers allow a 1-tier stretch above their level.
+      const gap = DIFFICULTY_MIN_TIER[u.difficulty] - userTierRank;
+      if (userTierRank <= 1) {
+        if (DIFFICULTY_MIN_TIER[u.difficulty] >= 4) return false; // hide Very Hard for low
+      } else if (gap > 1) {
+        return false;
+      }
       return true;
     });
 
@@ -336,6 +351,16 @@ const DashboardPage = () => {
                         ? "No colleges fit your strict criteria. Try adding more target countries, broadening your stream, or softening the 'critical' answers in the quiz."
                         : "Take the aptitude quiz to unlock personalised recommendations"}
                 </p>
+                {isProfileComplete && (profile as any)?.stream && (profile as any)?.degree_type && (
+                  <div className="mt-4 text-xs text-muted-foreground/80 space-y-1 max-w-md mx-auto text-left bg-secondary/40 rounded-lg p-3">
+                    <p className="label-mono mb-1">Active filters</p>
+                    <p>· Degree: <strong>{(profile as any).degree_type}</strong> · Stream: <strong>{(profile as any).stream}</strong></p>
+                    <p>· Countries: <strong>{(profile?.target_countries || []).join(", ") || "Any"}</strong></p>
+                    <p>· Grade tier: <strong>{(profile as any).grade_tier || "average"}</strong></p>
+                    {quizPrefs.hostel_priority === "critical" && <p>· Hostel: <strong>required (in-house)</strong></p>}
+                    {quizPrefs.fees_priority === "critical" && <p>· Fees: <strong>budget-strict (no expensive colleges)</strong></p>}
+                  </div>
+                )}
                 <Link to={!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type) ? "/profile" : quizCompleted ? "/profile" : "/quiz"}>
                   <Button className="mt-4" size="sm">
                     {!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type)
