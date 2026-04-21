@@ -140,6 +140,16 @@ const ProfilePage = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>Current Class / Year</Label>
+                <Select value={form.current_class} onValueChange={v => setForm(p => ({ ...p, current_class: v }))}>
+                  <SelectTrigger><SelectValue placeholder="e.g. Class 11" /></SelectTrigger>
+                  <SelectContent>
+                    {CLASS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Used to compute realistic prep timeline & target attempt year for your roadmap.</p>
+              </div>
             </CardContent>
           </Card>
 
