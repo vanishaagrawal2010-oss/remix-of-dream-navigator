@@ -21,10 +21,27 @@ export const useProfile = () => {
     setLoading(false);
   };
 
-  useEffect(() => { fetchProfile(); }, [user]);
+  useEffect(() => {
+    fetchProfile();
+    if (!user) return;
+    // Realtime: any change to this user's profile row instantly updates everywhere
+    const channel = supabase
+      .channel(`profile-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          if (payload.new) setProfile(payload.new as Profile);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return;
+    // Optimistic update so UI reacts immediately even before refetch / realtime
+    setProfile((prev) => (prev ? { ...prev, ...updates } as Profile : prev));
     const { error } = await supabase
       .from("profiles")
       .update(updates)
