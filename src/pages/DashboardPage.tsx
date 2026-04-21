@@ -135,6 +135,11 @@ const DashboardPage = () => {
     const tier = (profile as any).grade_tier || deriveGradeTier(profile.grades);
     const userTierRank = TIER_RANK[tier] ?? 2;
 
+    // Undergrad bachelor's degrees are equivalent across countries (BS = BTech = BE)
+    const undergradEquivalents = new Set(["bs", "btech", "be", "b.tech", "b.e"]);
+    const isUndergradEquiv = (a: string, b: string) =>
+      undergradEquivalents.has(a.toLowerCase()) && undergradEquivalents.has(b.toLowerCase());
+
     // Stream synonyms (e.g. Data Science → Computer Science)
     const streamSynonyms: Record<string, string[]> = {
       "data science": ["computer science", "ai/ml", "information technology"],
@@ -195,7 +200,10 @@ const DashboardPage = () => {
 
     const matches = ALL_UNIS.filter(u => {
       if (countries.length > 0 && !countries.includes(u.country)) return false;
-      if (degreeType && u.degree.toLowerCase() !== degreeType.toLowerCase()) return false;
+      if (degreeType) {
+        const same = u.degree.toLowerCase() === degreeType.toLowerCase();
+        if (!same && !isUndergradEquiv(u.degree, degreeType)) return false;
+      }
       if (!matchesStreamFn(u)) return false;
       // Quiz HARD filters
       if (hostelCritical && (u.hostel === "Limited" || !u.hostel)) return false;
@@ -204,8 +212,15 @@ const DashboardPage = () => {
         const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],\d{2},\d{3}|₹\d\d,\d{2},\d{3}/.test(t);
         if (isExpensive) return false;
       }
-      // Tier gate: only reachable colleges (with 1-tier stretch allowed)
-      if (userTierRank + 1 < DIFFICULTY_MIN_TIER[u.difficulty]) return false;
+      // Tier gate: only block colleges that are clearly out of reach.
+      // Low-tier students still see Hard colleges as stretch picks (only Very Hard is hidden).
+      // Higher tiers allow a 1-tier stretch above their level.
+      const gap = DIFFICULTY_MIN_TIER[u.difficulty] - userTierRank;
+      if (userTierRank <= 1) {
+        if (DIFFICULTY_MIN_TIER[u.difficulty] >= 4) return false; // hide Very Hard for low
+      } else if (gap > 1) {
+        return false;
+      }
       return true;
     });
 
