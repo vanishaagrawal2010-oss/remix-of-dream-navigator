@@ -4,7 +4,7 @@ import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { GraduationCap, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const AuthPage = () => {
@@ -31,19 +31,15 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-accent/5 blur-3xl" />
-      </div>
+    <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="glass-card w-full max-w-md relative">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
-            <GraduationCap className="h-7 w-7 text-primary" />
-          </div>
-          <CardTitle className="font-heading text-2xl gradient-text">UniGuide AI</CardTitle>
-          <CardDescription>
-            {isLogin ? "Welcome back! Sign in to continue." : "Create your account to get started."}
+        <CardHeader className="text-center space-y-4 pt-10">
+          <p className="label-mono text-muted-foreground">Maison Guide · Est. 2026</p>
+          <CardTitle className="font-heading text-4xl font-medium tracking-tight">
+            {isLogin ? "Welcome back." : "Begin your journey."}
+          </CardTitle>
+          <CardDescription className="text-base">
+            {isLogin ? "Sign in to continue your application atelier." : "A handcrafted guide to the right college, the right way."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -63,16 +59,16 @@ const AuthPage = () => {
               required
               minLength={6}
             />
-            <Button type="submit" className="w-full font-heading font-semibold" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLogin ? "Sign In" : "Create Account"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.25} />}
+              {isLogin ? "Sign in" : "Begin your journey"}
             </Button>
           </form>
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+            className="mt-6 w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
           >
-            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            {isLogin ? "New here? Create your account →" : "Already have an account? Sign in →"}
           </button>
         </CardContent>
       </Card>
