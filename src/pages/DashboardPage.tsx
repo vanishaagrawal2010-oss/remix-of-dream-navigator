@@ -351,6 +351,16 @@ const DashboardPage = () => {
                         ? "No colleges fit your strict criteria. Try adding more target countries, broadening your stream, or softening the 'critical' answers in the quiz."
                         : "Take the aptitude quiz to unlock personalised recommendations"}
                 </p>
+                {isProfileComplete && (profile as any)?.stream && (profile as any)?.degree_type && (
+                  <div className="mt-4 text-xs text-muted-foreground/80 space-y-1 max-w-md mx-auto text-left bg-secondary/40 rounded-lg p-3">
+                    <p className="label-mono mb-1">Active filters</p>
+                    <p>· Degree: <strong>{(profile as any).degree_type}</strong> · Stream: <strong>{(profile as any).stream}</strong></p>
+                    <p>· Countries: <strong>{(profile?.target_countries || []).join(", ") || "Any"}</strong></p>
+                    <p>· Grade tier: <strong>{(profile as any).grade_tier || "average"}</strong></p>
+                    {quizPrefs.hostel_priority === "critical" && <p>· Hostel: <strong>required (in-house)</strong></p>}
+                    {quizPrefs.fees_priority === "critical" && <p>· Fees: <strong>budget-strict (no expensive colleges)</strong></p>}
+                  </div>
+                )}
                 <Link to={!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type) ? "/profile" : quizCompleted ? "/profile" : "/quiz"}>
                   <Button className="mt-4" size="sm">
                     {!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type)
