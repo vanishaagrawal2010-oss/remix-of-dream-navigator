@@ -77,6 +77,7 @@ export type Database = {
         Row: {
           budget: string | null
           created_at: string
+          current_class: string | null
           degree_type: string | null
           extracted_facts: Json | null
           extracurriculars: string[] | null
@@ -96,6 +97,7 @@ export type Database = {
         Insert: {
           budget?: string | null
           created_at?: string
+          current_class?: string | null
           degree_type?: string | null
           extracted_facts?: Json | null
           extracurriculars?: string[] | null
@@ -115,6 +117,7 @@ export type Database = {
         Update: {
           budget?: string | null
           created_at?: string
+          current_class?: string | null
           degree_type?: string | null
           extracted_facts?: Json | null
           extracurriculars?: string[] | null

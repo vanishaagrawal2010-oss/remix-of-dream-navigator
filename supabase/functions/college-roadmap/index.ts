@@ -19,23 +19,44 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    // Compute target attempt year from current_class
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const currentYear = today.getFullYear();
+    // After June, the academic year has rolled over for class promotions in most countries
+    const academicYearOffset = today.getMonth() >= 6 ? 0 : 0;
+    const classToYearsLeft: Record<string, number> = {
+      "class 9": 4, "class 10": 3, "class 11": 2, "class 12": 1,
+      "gap year": 1, "1st year ug": 0, "2nd year ug": 0, "3rd year ug": 0,
+      "final year ug": 0, "postgrad": 0,
+    };
+    const cls = (profile?.current_class || "").toLowerCase();
+    const yearsLeft = classToYearsLeft[cls] ?? null;
+    const targetAttemptYear = yearsLeft !== null ? currentYear + yearsLeft + academicYearOffset : null;
+
     const profileBlock = profile ? `
 STUDENT CONTEXT:
 - Name: ${profile.name || "N/A"}
+- Current Class/Year: ${profile.current_class || "N/A"}
 - Degree Type: ${profile.degree_type || "N/A"}
 - Stream: ${profile.stream || "N/A"}
 - Grades: ${profile.grades || "N/A"}
 - Country preference: ${(profile.target_countries || []).join(", ") || "N/A"}
+${targetAttemptYear ? `- TARGET ENTRANCE EXAM ATTEMPT YEAR: ${targetAttemptYear} (the student has ~${yearsLeft} year(s) of preparation time remaining)` : ""}
 ` : "";
 
-    const today = new Date().toISOString().split("T")[0];
-
-    const systemPrompt = `You are an expert admissions strategist. Today is ${today}.
+    const systemPrompt = `You are an expert admissions strategist. Today is ${todayStr}.
 The student wants a ZERO-TO-ONE admission roadmap for: "${college}".
 
 ${profileBlock}
 
-Use your knowledge of OFFICIAL sources (e.g., jeemain.nta.nic.in, jeeadv.ac.in, collegeboard.org, ucas.com, university official sites) to produce the most up-to-date guide possible. If exact dates for the upcoming cycle are not yet announced, clearly mark them as "Tentative (based on previous year)" and link to the official source so the student can verify.
+Use your knowledge of OFFICIAL sources (e.g., jeemain.nta.nic.in, jeeadv.ac.in, collegeboard.org, ucas.com, university official sites) to produce the most up-to-date guide possible.
+
+CRITICAL — TIMELINE PERSONALISATION:
+- Build the entire roadmap around the student's TARGET ATTEMPT YEAR (${targetAttemptYear || "infer from their current class"}).
+- All "schedule" entries must reference dates in the cycle leading up to that target year (e.g. for a Class 11 student today, JEE Main attempt = Jan ${currentYear + 2}, JEE Advanced = May ${currentYear + 2}, results = Jun ${currentYear + 2}).
+- All "stages" must use realistic months/years anchored to today (${todayStr}) and ending at the target attempt year.
+- If exact dates for the upcoming cycle are not yet announced, mark as "Tentative (based on previous year)" and link to the official source.
 
 Return ONLY valid JSON matching this exact schema (no markdown fences, no extra prose):
 

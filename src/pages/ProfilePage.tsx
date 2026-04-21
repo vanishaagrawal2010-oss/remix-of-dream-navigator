@@ -15,6 +15,7 @@ const COUNTRY_OPTIONS = ["USA", "UK", "Canada", "Australia", "Germany", "Netherl
 const INTEREST_OPTIONS = ["Computer Science", "Engineering", "Business", "Medicine", "Law", "Arts", "Sciences", "Mathematics", "Psychology", "Economics"];
 const DEGREE_OPTIONS = ["BTech", "BS", "BA", "MS", "MBA", "PhD", "BBA", "MCA", "ME/MTech"];
 const STREAM_OPTIONS = ["Computer Science", "Information Technology", "Electronics", "Mechanical", "Civil", "Chemical", "Aerospace", "Data Science", "AI/ML", "Biotechnology", "Finance", "Marketing", "General"];
+const CLASS_OPTIONS = ["Class 9", "Class 10", "Class 11", "Class 12", "Gap Year", "1st Year UG", "2nd Year UG", "3rd Year UG", "Final Year UG", "Postgrad"];
 
 const ProfilePage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -30,6 +31,7 @@ const ProfilePage = () => {
     budget: "",
     degree_type: "",
     stream: "",
+    current_class: "",
     interests: [] as string[],
     target_countries: [] as string[],
     extracurriculars: [] as string[],
@@ -45,6 +47,7 @@ const ProfilePage = () => {
         budget: profile.budget || "",
         degree_type: (profile as any).degree_type || "",
         stream: (profile as any).stream || "",
+        current_class: (profile as any).current_class || "",
         interests: profile.interests || [],
         target_countries: profile.target_countries || [],
         extracurriculars: profile.extracurriculars || [],
@@ -136,6 +139,16 @@ const ProfilePage = () => {
                     {STREAM_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label>Current Class / Year</Label>
+                <Select value={form.current_class} onValueChange={v => setForm(p => ({ ...p, current_class: v }))}>
+                  <SelectTrigger><SelectValue placeholder="e.g. Class 11" /></SelectTrigger>
+                  <SelectContent>
+                    {CLASS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Used to compute realistic prep timeline & target attempt year for your roadmap.</p>
               </div>
             </CardContent>
           </Card>
