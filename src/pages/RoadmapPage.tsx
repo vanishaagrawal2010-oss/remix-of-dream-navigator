@@ -75,6 +75,7 @@ const RoadmapPage = () => {
             degree_type: (profile as any).degree_type,
             stream: (profile as any).stream,
             grades: profile.grades,
+            current_class: (profile as any).current_class,
             target_countries: profile.target_countries,
           } : null,
         },

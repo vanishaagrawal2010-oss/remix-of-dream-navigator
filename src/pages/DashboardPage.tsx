@@ -150,16 +150,13 @@ const DashboardPage = () => {
     (streamSynonyms[stream.toLowerCase()] || []).forEach(s => streamMatchSet.add(s));
 
     const matchesStreamFn = (u: typeof ALL_UNIS[number]) => {
-      if (!stream) return true;
+      if (!stream) return false; // STRICT: no stream → no recs (user must pick one)
       const us = u.stream.toLowerCase();
       const up = u.program.toLowerCase();
       for (const s of streamMatchSet) {
         if (us.includes(s) || up.includes(s)) return true;
       }
-      return interests.some(i =>
-        u.program.toLowerCase().includes(i.toLowerCase()) ||
-        u.stream.toLowerCase().includes(i.toLowerCase())
-      );
+      return false;
     };
 
     const scoreFn = (u: typeof ALL_UNIS[number]) => {
@@ -191,33 +188,28 @@ const DashboardPage = () => {
       return Math.min(99, Math.max(35, Math.round(score)));
     };
 
-    // PASS 1: strict — country + degree + stream + tier-reachable
-    const strict = ALL_UNIS.filter(u => {
+    // STRICT: country + degree + stream are HARD filters (no fallback that loosens them)
+    // Quiz hard-filters: hostel-critical removes "Limited" hostels; fees-critical removes very expensive
+    const hostelCritical = quiz.hostel_priority === "critical";
+    const feesCritical = quiz.fees_priority === "critical";
+
+    const matches = ALL_UNIS.filter(u => {
       if (countries.length > 0 && !countries.includes(u.country)) return false;
       if (degreeType && u.degree.toLowerCase() !== degreeType.toLowerCase()) return false;
       if (!matchesStreamFn(u)) return false;
-      if (userTierRank < DIFFICULTY_MIN_TIER[u.difficulty]) return false;
+      // Quiz HARD filters
+      if (hostelCritical && (u.hostel === "Limited" || !u.hostel)) return false;
+      if (feesCritical) {
+        const t = u.tuition.toLowerCase();
+        const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],\d{2},\d{3}|₹\d\d,\d{2},\d{3}/.test(t);
+        if (isExpensive) return false;
+      }
+      // Tier gate: only reachable colleges (with 1-tier stretch allowed)
+      if (userTierRank + 1 < DIFFICULTY_MIN_TIER[u.difficulty]) return false;
       return true;
     });
-    if (strict.length >= 3) {
-      return strict.map(u => ({ ...u, match: scoreFn(u) })).sort((a, b) => b.match - a.match);
-    }
 
-    // PASS 2: relaxed — drop the tier gate (still respect country/degree/stream)
-    const relaxed = ALL_UNIS.filter(u => {
-      if (countries.length > 0 && !countries.includes(u.country)) return false;
-      if (degreeType && u.degree.toLowerCase() !== degreeType.toLowerCase()) return false;
-      return matchesStreamFn(u);
-    });
-    if (relaxed.length >= 3) {
-      return relaxed.map(u => ({ ...u, match: scoreFn(u) })).sort((a, b) => b.match - a.match);
-    }
-
-    // PASS 3: very relaxed — only country
-    const fallback = ALL_UNIS.filter(u =>
-      countries.length === 0 || countries.includes(u.country)
-    );
-    return fallback.map(u => ({ ...u, match: scoreFn(u) })).sort((a, b) => b.match - a.match);
+    return matches.map(u => ({ ...u, match: scoreFn(u) })).sort((a, b) => b.match - a.match);
   }, [profile]);
 
   const unswiped = recommendations.filter(u => !swiped.has(u.name));
