@@ -326,11 +326,15 @@ const DashboardPage = () => {
                 <p className="text-muted-foreground">
                   {!isProfileComplete
                     ? "Complete your profile so we can match you with the right colleges"
-                    : "We couldn't find colleges yet — try adding a target country or broadening your stream in your profile"}
+                    : !((profile as any)?.stream) || !((profile as any)?.degree_type)
+                      ? "Pick your degree type and stream in your profile so we can recommend matching colleges"
+                      : !quizCompleted
+                        ? "Take the aptitude quiz to unlock personalised recommendations"
+                        : "No colleges match your strict filters yet — try adding more target countries or relaxing the hostel/fees-critical answers in the quiz"}
                 </p>
-                <Link to={!isProfileComplete ? "/profile" : "/quiz"}>
+                <Link to={!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type) ? "/profile" : "/quiz"}>
                   <Button className="mt-4" size="sm">
-                    {!isProfileComplete ? "Set Up Profile" : "Take Aptitude Quiz"}
+                    {!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type) ? "Edit Profile" : "Take Aptitude Quiz"}
                   </Button>
                 </Link>
               </CardContent>
