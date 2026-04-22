@@ -52,8 +52,15 @@ const ChatPage = () => {
       });
   }, [conversationId]);
 
+  // Auto-scroll only the inner chat container (not the page)
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    const node = scrollRef.current;
+    if (!node) return;
+    // Find the closest scrollable parent (Radix ScrollArea viewport)
+    const viewport = node.closest("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
+    }
   }, [messages]);
 
   const createConversation = async () => {
@@ -283,7 +290,8 @@ const ChatPage = () => {
           </ScrollArea>
         )}
 
-        <div className="border-t border-border p-4">
+        {/* Typing bar — lifted off the very bottom for breathing room */}
+        <div className="border-t border-border p-3 md:p-4 mb-6 md:mb-10 bg-background/80 backdrop-blur">
           <form onSubmit={e => { e.preventDefault(); sendMessage(); }} className="max-w-3xl mx-auto flex gap-2">
             <Input
               value={input}
