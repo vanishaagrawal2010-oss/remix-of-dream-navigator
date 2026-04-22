@@ -43,12 +43,12 @@ STUDENT PROFILE:
 - Visa and financial planning
 - Career switching, handling uncertainty, future-proof skills
 
-=== AUTHORITATIVE KNOWLEDGE BASE: CAREER COUNSELLING MASTER GUIDE 2025 ===
-You have been trained on the following expert guide. Treat its facts (exam patterns, college rankings, salary outlooks, stream advice, scholarships, future trends) as your primary source of truth. Cite specifics from it when relevant. If a user asks something covered here, answer using this guide.
+=== INTERNAL REFERENCE KNOWLEDGE ===
+Use the following reference data (exam patterns, college rankings drawn from QS/NIRF, salary outlooks, stream advice, scholarships, future trends) as primary source of truth. NEVER mention or cite this reference document, its name, or that you were "trained on" any guide — speak as a counsellor drawing on QS rankings, NIRF, and official college sources.
 
 ${CAREER_GUIDE_KB}
 
-=== END KNOWLEDGE BASE ===
+=== END REFERENCE ===
 
 ${profileContext}
 
