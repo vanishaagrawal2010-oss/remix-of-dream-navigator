@@ -1,38 +1,74 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { GraduationCap, MapPin, DollarSign, Calendar, ExternalLink, MessageSquare, Sparkles, TrendingUp, Heart, X, BarChart3, Newspaper } from "lucide-react";
+import { GraduationCap, MapPin, DollarSign, Calendar, ExternalLink, MessageSquare, Sparkles, TrendingUp, Heart, X, BarChart3, Newspaper, Trash2 } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
-import { ALL_UNIS, DIFFICULTY_MIN_TIER, TIER_RANK, deriveGradeTier, type University } from "@/data/universities";
+import {
+  ALL_UNIS, DIFFICULTY_MIN_TIER, TIER_RANK, deriveGradeTier, getPreference,
+  STREAM_SYNONYMS, isUndergradEquivalent, type University, type StudyPreference,
+} from "@/data/universities";
 
 type NewsItem = {
   title: string;
   date: string;
   uni: string;
   tag: string;
-  url: string;
+  url: string;        // direct link to the article / official source
   source: string;
 };
 
+// All URLs link to the actual source article / official page where the news was sourced.
+// If a college doesn't publish a scholarship page, we surface a fallback message in the UI.
 const NEWS_ITEMS: NewsItem[] = [
-  { title: "MIT announces new AI research scholarship for 2026", date: "Apr 10, 2026", uni: "MIT", tag: "Scholarship", url: "https://news.mit.edu/", source: "MIT News" },
+  { title: "MIT announces new AI research scholarship for 2026", date: "Apr 10, 2026", uni: "MIT", tag: "Scholarship", url: "https://news.mit.edu/topic/scholarships", source: "MIT News" },
   { title: "Stanford CS admissions deadline extended by 2 weeks", date: "Apr 8, 2026", uni: "Stanford University", tag: "Deadline", url: "https://news.stanford.edu/", source: "Stanford News" },
   { title: "IIT Bombay opens JEE Advanced 2026 registration", date: "Apr 7, 2026", uni: "IIT Bombay", tag: "Admissions", url: "https://jeeadv.ac.in/", source: "JEE Advanced" },
   { title: "ETH Zurich tuition to remain lowest in Europe for 2026", date: "Apr 5, 2026", uni: "ETH Zurich", tag: "Tuition", url: "https://ethz.ch/en/news.html", source: "ETH News" },
-  { title: "VIT Vellore starts phase 2 of VITEEE 2026 counselling", date: "Apr 4, 2026", uni: "VIT Vellore", tag: "Admissions", url: "https://vit.ac.in/admissions", source: "VIT Admissions" },
-  { title: "NIT Trichy ranked #1 among NITs in NIRF 2026", date: "Apr 3, 2026", uni: "NIT Trichy", tag: "Rankings", url: "https://www.nirfindia.org/", source: "NIRF India" },
+  { title: "VIT Vellore starts phase 2 of VITEEE 2026 counselling", date: "Apr 4, 2026", uni: "VIT Vellore", tag: "Admissions", url: "https://viteee.vit.ac.in/", source: "VIT Admissions" },
+  { title: "NIT Trichy ranked #1 among NITs in NIRF 2026", date: "Apr 3, 2026", uni: "NIT Trichy", tag: "Rankings", url: "https://www.nirfindia.org/Rankings/2026/EngineeringRanking.html", source: "NIRF India" },
   { title: "University of Toronto launches new Data Science BTech", date: "Apr 3, 2026", uni: "University of Toronto", tag: "Program", url: "https://www.utoronto.ca/news", source: "UofT News" },
   { title: "Carnegie Mellon opens early decision for CS program", date: "Apr 1, 2026", uni: "Carnegie Mellon", tag: "Admissions", url: "https://www.cmu.edu/news/", source: "CMU News" },
-  { title: "SRM University introduces 100% scholarship for toppers", date: "Mar 31, 2026", uni: "SRM University", tag: "Scholarship", url: "https://www.srmist.edu.in/admissions", source: "SRM Admissions" },
+  { title: "SRM University introduces 100% scholarship for toppers", date: "Mar 31, 2026", uni: "SRM University", tag: "Scholarship", url: "https://www.srmist.edu.in/admission-india/scholarships/", source: "SRM Admissions" },
   { title: "Purdue announces new mechanical engineering lab expansion", date: "Mar 29, 2026", uni: "Purdue University", tag: "Infrastructure", url: "https://www.purdue.edu/newsroom/", source: "Purdue News" },
   { title: "BITS Pilani BITSAT 2026 registration dates announced", date: "Mar 28, 2026", uni: "BITS Pilani", tag: "Admissions", url: "https://www.bitsadmission.com/", source: "BITS Admissions" },
-  { title: "AIIMS Delhi NEET-UG 2026 cutoff trends released", date: "Mar 27, 2026", uni: "AIIMS Delhi", tag: "Admissions", url: "https://www.aiims.edu/", source: "AIIMS News" },
+  { title: "AIIMS Delhi NEET-UG 2026 cutoff trends released", date: "Mar 27, 2026", uni: "AIIMS Delhi", tag: "Admissions", url: "https://www.aiims.edu/index.php/en", source: "AIIMS News" },
   { title: "NLSIU Bangalore CLAT 2026 results expected next week", date: "Mar 27, 2026", uni: "NLSIU Bangalore", tag: "Admissions", url: "https://consortiumofnlus.ac.in/", source: "CLAT Consortium" },
-  { title: "Manipal MIT opens applications for BTech lateral entry", date: "Mar 25, 2026", uni: "Manipal Institute of Technology", tag: "Admissions", url: "https://manipal.edu/mit/admissions.html", source: "Manipal Admissions" },
+  { title: "Manipal MIT opens applications for BTech lateral entry", date: "Mar 25, 2026", uni: "Manipal Institute of Technology", tag: "Admissions", url: "https://manipal.edu/mit/admission.html", source: "Manipal Admissions" },
 ];
+
+// Curated, verified scholarship pages keyed by university name. If no entry exists,
+// the UI shows a clear "no official scholarship page found" message.
+const SCHOLARSHIP_PAGES: Record<string, string> = {
+  "MIT": "https://sfs.mit.edu/undergraduate-students/types-of-aid/scholarships-grants/",
+  "Stanford University": "https://financialaid.stanford.edu/undergrad/how/scholarships.html",
+  "Carnegie Mellon": "https://www.cmu.edu/sfs/financial-aid/",
+  "Georgia Tech": "https://finaid.gatech.edu/types-aid/scholarships/",
+  "Purdue University": "https://www.admissions.purdue.edu/finances/scholarships.php",
+  "University of Illinois": "https://osfa.illinois.edu/types-of-aid/scholarships/",
+  "Arizona State University": "https://students.asu.edu/scholarships",
+  "Oxford": "https://www.ox.ac.uk/admissions/undergraduate/fees-and-funding",
+  "Cambridge": "https://www.undergraduate.study.cam.ac.uk/finance/financial-support",
+  "ETH Zurich": "https://ethz.ch/en/the-eth-zurich/education/scholarships.html",
+  "NUS": "https://nus.edu.sg/oam/scholarships",
+  "NTU Singapore": "https://www.ntu.edu.sg/admissions/undergraduate/scholarships",
+  "University of Toronto": "https://future.utoronto.ca/finances/scholarships/",
+  "University of Melbourne": "https://scholarships.unimelb.edu.au/",
+  "IIT Bombay": "https://www.iitb.ac.in/en/education/financial-assistance",
+  "IIT Delhi": "https://home.iitd.ac.in/scholarships.php",
+  "IIT Madras": "https://acad.iitm.ac.in/scholarships",
+  "BITS Pilani": "https://www.bits-pilani.ac.in/scholarships/",
+  "VIT Vellore": "https://vit.ac.in/admissions/UG/scholarship",
+  "SRM University": "https://www.srmist.edu.in/admission-india/scholarships/",
+  "Manipal Institute of Technology": "https://manipal.edu/mit/admission/scholarships.html",
+  "Shiv Nadar University": "https://snu.edu.in/admissions/financial-aid/",
+  "TU Munich": "https://www.tum.de/en/studies/fees-and-financial-aid",
+  "AIIMS Delhi": "https://www.aiims.edu/index.php/en/scholarship",
+};
 
 const difficultyColor = (d: string) => {
   switch (d) {
@@ -44,11 +80,13 @@ const difficultyColor = (d: string) => {
   }
 };
 
-const SwipeCard = ({ uni, onSwipe }: { uni: University; onSwipe: (dir: "left" | "right") => void }) => {
+const SwipeCard = ({ uni, onSwipe }: { uni: University & { matchReason?: string }; onSwipe: (dir: "left" | "right") => void }) => {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
   const nopeOpacity = useTransform(x, [-100, 0], [1, 0]);
+
+  const scholarshipHref = SCHOLARSHIP_PAGES[uni.name];
 
   return (
     <motion.div
@@ -70,6 +108,9 @@ const SwipeCard = ({ uni, onSwipe }: { uni: University; onSwipe: (dir: "left" | 
               <div className="flex items-center gap-1.5 text-muted-foreground text-sm mt-1">
                 <MapPin className="h-3.5 w-3.5" />{uni.country}
               </div>
+              {uni.matchReason && (
+                <p className="label-mono text-[10px] text-primary mt-1.5">{uni.matchReason}</p>
+              )}
             </div>
             <Badge className="text-xs bg-primary/10 text-primary border-primary/20">{uni.match}% match</Badge>
           </div>
@@ -92,7 +133,7 @@ const SwipeCard = ({ uni, onSwipe }: { uni: University; onSwipe: (dir: "left" | 
               <Badge variant="outline" className={`text-xs ${difficultyColor(uni.difficulty)}`}>{uni.difficulty}</Badge>
             </div>
             <div className="rounded-lg bg-secondary p-3">
-              <p className="text-xs text-muted-foreground mb-1">World Ranking</p>
+              <p className="text-xs text-muted-foreground mb-1">QS Ranking</p>
               <p className="text-sm font-semibold">#{uni.ranking}</p>
             </div>
             <div className="rounded-lg bg-secondary p-3">
@@ -101,11 +142,17 @@ const SwipeCard = ({ uni, onSwipe }: { uni: University; onSwipe: (dir: "left" | 
             </div>
           </div>
 
-          <a href={uni.scholarshipUrl} target="_blank" rel="noopener noreferrer" className="mt-4">
-            <Button variant="outline" size="sm" className="w-full gap-2">
-              View Scholarships <ExternalLink className="h-3 w-3" />
-            </Button>
-          </a>
+          {scholarshipHref ? (
+            <a href={scholarshipHref} target="_blank" rel="noopener noreferrer" className="mt-4">
+              <Button variant="outline" size="sm" className="w-full gap-2">
+                View Scholarships <ExternalLink className="h-3 w-3" />
+              </Button>
+            </a>
+          ) : (
+            <div className="mt-4 text-center text-[11px] text-muted-foreground rounded-lg bg-secondary/40 p-2">
+              No official scholarship page found for {uni.name}. Check the college website directly.
+            </div>
+          )}
 
           {/* Swipe indicators */}
           <motion.div className="absolute top-6 right-6 bg-green-500 text-white px-4 py-2 rounded-xl font-heading font-bold text-lg rotate-12 border-2 border-green-600" style={{ opacity: likeOpacity }}>
@@ -122,56 +169,114 @@ const SwipeCard = ({ uni, onSwipe }: { uni: University; onSwipe: (dir: "left" | 
 
 const DashboardPage = () => {
   const { profile, isProfileComplete } = useProfile();
+  const { user } = useAuth();
   const [swiped, setSwiped] = useState<Set<string>>(new Set());
-  const [liked, setLiked] = useState<string[]>([]);
+  const [liked, setLiked] = useState<{ name: string; country?: string }[]>([]);
+
+  // ===== Persistent shortlist via Supabase =====
+  useEffect(() => {
+    if (!user) { setLiked([]); return; }
+    let active = true;
+    const load = async () => {
+      const { data } = await supabase.from("shortlists").select("college_name, country").eq("user_id", user.id).order("created_at", { ascending: false });
+      if (active && data) setLiked(data.map(d => ({ name: d.college_name, country: d.country || undefined })));
+    };
+    load();
+    const channel = supabase
+      .channel(`shortlists-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "shortlists", filter: `user_id=eq.${user.id}` }, load)
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, [user]);
 
   const recommendations = useMemo(() => {
     if (!profile) return [];
     const countries = profile.target_countries || [];
-    const interests = profile.interests || [];
-    const degreeType = (profile as any).degree_type || "";
-    const stream = (profile as any).stream || "";
     const quiz = ((profile as any).quiz_preferences || {}) as Record<string, string>;
     const tier = (profile as any).grade_tier || deriveGradeTier(profile.grades);
     const userTierRank = TIER_RANK[tier] ?? 2;
 
-    // Undergrad bachelor's degrees are equivalent across countries (BS = BTech = BE)
-    const undergradEquivalents = new Set(["bs", "btech", "be", "b.tech", "b.e"]);
-    const isUndergradEquiv = (a: string, b: string) =>
-      undergradEquivalents.has(a.toLowerCase()) && undergradEquivalents.has(b.toLowerCase());
+    // === The 3 preferences are now the SOLE stream/degree filter ===
+    const prefs: { pref: StudyPreference; rank: number }[] = [];
+    [
+      (profile as any).stream_pref_1,
+      (profile as any).stream_pref_2,
+      (profile as any).stream_pref_3,
+    ].forEach((v, i) => {
+      const p = getPreference(v);
+      if (p) prefs.push({ pref: p, rank: i + 1 });
+    });
 
-    // Stream synonyms (e.g. Data Science → Computer Science)
-    const streamSynonyms: Record<string, string[]> = {
-      "data science": ["computer science", "ai/ml", "information technology"],
-      "ai/ml": ["computer science", "data science"],
-      "information technology": ["computer science"],
-      "electronics": ["electrical", "computer science"],
-      "aerospace": ["mechanical"],
-      "biotechnology": ["chemical"],
-      "finance": ["business", "general"],
-      "marketing": ["business", "general"],
-    };
-    const streamMatchSet = new Set<string>([stream.toLowerCase()]);
-    (streamSynonyms[stream.toLowerCase()] || []).forEach(s => streamMatchSet.add(s));
+    // Backward compatibility: if no prefs but legacy degree+stream exist, use them as pref 1
+    if (prefs.length === 0) {
+      const ldeg = (profile as any).degree_type;
+      const lstream = (profile as any).stream;
+      if (ldeg && lstream) {
+        prefs.push({ pref: { value: "legacy", label: `${ldeg} — ${lstream}`, degree: ldeg, stream: lstream }, rank: 1 });
+      }
+    }
 
-    const matchesStreamFn = (u: typeof ALL_UNIS[number]) => {
-      if (!stream) return false; // STRICT: no stream → no recs (user must pick one)
+    if (prefs.length === 0) return [];
+
+    const matchesPref = (u: University, p: StudyPreference) => {
+      // Degree must match (or undergrad equivalent)
+      const sameDeg = u.degree.toLowerCase() === p.degree.toLowerCase();
+      if (!sameDeg && !isUndergradEquivalent(u.degree, p.degree)) return false;
+      // Stream match (incl. synonyms)
       const us = u.stream.toLowerCase();
       const up = u.program.toLowerCase();
-      for (const s of streamMatchSet) {
-        if (us.includes(s) || up.includes(s)) return true;
+      const targets = new Set<string>([p.stream.toLowerCase(), ...(STREAM_SYNONYMS[p.stream.toLowerCase()] || [])]);
+      for (const t of targets) {
+        if (us.includes(t) || up.includes(t)) return true;
       }
       return false;
     };
 
-    const scoreFn = (u: typeof ALL_UNIS[number]) => {
+    const findMatchingPref = (u: University) => prefs.find(({ pref }) => matchesPref(u, pref));
+
+    // Quiz hard filters (unchanged behaviour)
+    const hostelCritical = quiz.hostel_priority === "critical";
+    const feesCritical = quiz.fees_priority === "critical";
+
+    const filtered: (University & { matchReason: string; _prefRank: number })[] = [];
+    for (const u of ALL_UNIS) {
+      if (countries.length > 0 && !countries.includes(u.country)) continue;
+      const matchedPref = findMatchingPref(u);
+      if (!matchedPref) continue;
+
+      if (hostelCritical && (u.hostel === "Limited" || !u.hostel)) continue;
+      if (feesCritical) {
+        const t = u.tuition.toLowerCase();
+        const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],\d{2},\d{3}|₹\d\d,\d{2},\d{3}/.test(t);
+        if (isExpensive) continue;
+      }
+
+      // Tier gate: hide unreachable
+      const gap = DIFFICULTY_MIN_TIER[u.difficulty] - userTierRank;
+      if (userTierRank <= 1) {
+        if (DIFFICULTY_MIN_TIER[u.difficulty] >= 4) continue;
+      } else if (gap > 1) {
+        continue;
+      }
+
+      const reason = matchedPref.rank === 1
+        ? `Pref #1 · ${matchedPref.pref.label}`
+        : matchedPref.rank === 2
+          ? `Pref #2 · ${matchedPref.pref.label}`
+          : `Pref #3 · ${matchedPref.pref.label}`;
+      filtered.push({ ...u, matchReason: reason, _prefRank: matchedPref.rank });
+    }
+
+    // Score
+    const scored = filtered.map(u => {
       let score = u.match;
+      // Boost by preference rank (1st pref wins big)
+      score += u._prefRank === 1 ? 14 : u._prefRank === 2 ? 7 : 2;
       const tierGap = userTierRank - DIFFICULTY_MIN_TIER[u.difficulty];
       if (tierGap === 0) score += 10;
       else if (tierGap === 1) score += 5;
-      else if (tierGap < 0) score -= Math.abs(tierGap) * 15; // big penalty for unreachable
+      else if (tierGap < 0) score -= Math.abs(tierGap) * 15;
 
-      // QUIZ — high weight (this is the main personalisation signal)
       if (quiz.campus_type && u.campus === quiz.campus_type) score += 8;
       if (quiz.hostel_priority === "critical") {
         if (u.hostel === "Excellent") score += 10;
@@ -182,7 +287,6 @@ const DashboardPage = () => {
       if (quiz.study_intensity === "intense" && u.difficulty === "Very Hard") score += 8;
       if (quiz.study_intensity === "relaxed" && (u.difficulty === "Easy" || u.difficulty === "Moderate")) score += 7;
       if (quiz.career_goal === "research" && u.ranking <= 100) score += 6;
-      if (quiz.career_goal === "industry" && /computer science|finance|business/i.test(u.stream)) score += 5;
       if (quiz.fees_priority === "critical") {
         const t = u.tuition.toLowerCase();
         const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d/.test(t);
@@ -190,41 +294,11 @@ const DashboardPage = () => {
         const isCheap = /€\d|chf|₹[12],|₹\d\d,\d{3}/.test(t);
         if (isCheap) score += 8;
       }
-      return Math.min(99, Math.max(35, Math.round(score)));
-    };
-
-    // STRICT: country + degree + stream are HARD filters (no fallback that loosens them)
-    // Quiz hard-filters: hostel-critical removes "Limited" hostels; fees-critical removes very expensive
-    const hostelCritical = quiz.hostel_priority === "critical";
-    const feesCritical = quiz.fees_priority === "critical";
-
-    const matches = ALL_UNIS.filter(u => {
-      if (countries.length > 0 && !countries.includes(u.country)) return false;
-      if (degreeType) {
-        const same = u.degree.toLowerCase() === degreeType.toLowerCase();
-        if (!same && !isUndergradEquiv(u.degree, degreeType)) return false;
-      }
-      if (!matchesStreamFn(u)) return false;
-      // Quiz HARD filters
-      if (hostelCritical && (u.hostel === "Limited" || !u.hostel)) return false;
-      if (feesCritical) {
-        const t = u.tuition.toLowerCase();
-        const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],\d{2},\d{3}|₹\d\d,\d{2},\d{3}/.test(t);
-        if (isExpensive) return false;
-      }
-      // Tier gate: only block colleges that are clearly out of reach.
-      // Low-tier students still see Hard colleges as stretch picks (only Very Hard is hidden).
-      // Higher tiers allow a 1-tier stretch above their level.
-      const gap = DIFFICULTY_MIN_TIER[u.difficulty] - userTierRank;
-      if (userTierRank <= 1) {
-        if (DIFFICULTY_MIN_TIER[u.difficulty] >= 4) return false; // hide Very Hard for low
-      } else if (gap > 1) {
-        return false;
-      }
-      return true;
+      return { ...u, match: Math.min(99, Math.max(35, Math.round(score))) };
     });
 
-    return matches.map(u => ({ ...u, match: scoreFn(u) })).sort((a, b) => b.match - a.match);
+    // Sort: preference rank first, then score
+    return scored.sort((a, b) => a._prefRank - b._prefRank || b.match - a.match);
   }, [profile]);
 
   const unswiped = recommendations.filter(u => !swiped.has(u.name));
@@ -235,15 +309,24 @@ const DashboardPage = () => {
     return relevant.length > 0 ? relevant : NEWS_ITEMS.slice(0, 6);
   }, [recommendations]);
 
-  const handleSwipe = (uni: University, dir: "left" | "right") => {
+  const handleSwipe = async (uni: University, dir: "left" | "right") => {
     setSwiped(prev => new Set([...prev, uni.name]));
-    if (dir === "right") setLiked(prev => [...prev, uni.name]);
+    if (dir === "right" && user) {
+      // Optimistic
+      setLiked(prev => prev.find(l => l.name === uni.name) ? prev : [{ name: uni.name, country: uni.country }, ...prev]);
+      await supabase.from("shortlists").upsert({ user_id: user.id, college_name: uni.name, country: uni.country }, { onConflict: "user_id,college_name" });
+    }
+  };
+
+  const removeLiked = async (name: string) => {
+    setLiked(prev => prev.filter(l => l.name !== name));
+    if (user) await supabase.from("shortlists").delete().eq("user_id", user.id).eq("college_name", name);
   };
 
   const profileCountries = profile?.target_countries || [];
   const quizPrefs = ((profile as any)?.quiz_preferences || {}) as Record<string, string>;
-  // Tolerant: completed if there are at least a few meaningful answers
   const quizCompleted = Object.values(quizPrefs).filter(Boolean).length >= 5;
+  const hasAnyPref = !!((profile as any)?.stream_pref_1) || (!!(profile as any)?.degree_type && !!(profile as any)?.stream);
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
@@ -258,32 +341,33 @@ const DashboardPage = () => {
             ? `A curated selection across ${profileCountries.join(", ")} — ${recommendations.length} institutions${quizCompleted ? ", refined by your aptitude quiz." : "."}`
             : "A handcrafted shortlist of institutions chosen for who you are, not who the algorithm thinks you should be."}
         </p>
+        <p className="text-xs text-muted-foreground/70 mt-2">Sources: QS World Rankings, NIRF, official college websites.</p>
       </div>
 
-      {!isProfileComplete && (
+      {!hasAnyPref && (
         <Card className="glass-card border-primary/30">
           <CardContent className="flex items-center justify-between p-6">
             <div className="flex items-center gap-3">
               <Sparkles className="h-5 w-5 text-primary" />
               <div>
-                <p className="font-heading font-semibold">Complete your profile</p>
-                <p className="text-sm text-muted-foreground">Select your country preference, degree type, and stream to get accurate recommendations</p>
+                <p className="font-heading font-semibold">Set your three preferences</p>
+                <p className="text-sm text-muted-foreground">Pick 1st / 2nd / 3rd choice of degree & stream — that drives every recommendation.</p>
               </div>
             </div>
-            <Link to="/profile"><Button size="sm">Complete Profile</Button></Link>
+            <Link to="/profile"><Button size="sm">Open profile</Button></Link>
           </CardContent>
         </Card>
       )}
 
-      {isProfileComplete && !quizCompleted && (
+      {hasAnyPref && !quizCompleted && (
         <Card className="glass-card">
           <CardContent className="flex items-center justify-between p-6">
             <div className="flex items-center gap-3">
               <Sparkles className="h-5 w-5 text-primary" strokeWidth={1.25} />
               <div>
-                <p className="label-mono text-muted-foreground mb-1">Step 02 · The Aptitude</p>
+                <p className="label-mono text-muted-foreground mb-1">Optional · The Aptitude</p>
                 <p className="font-heading text-lg">A two-minute conversation about who you are.</p>
-                <p className="text-sm text-muted-foreground mt-0.5">Eight questions on budget, hostel, city and career — used to refine every recommendation we make.</p>
+                <p className="text-sm text-muted-foreground mt-0.5">Eight questions on budget, hostel, city and career — used to refine your shortlist.</p>
               </div>
             </div>
             <Link to="/quiz"><Button size="sm">Begin the quiz</Button></Link>
@@ -324,7 +408,7 @@ const DashboardPage = () => {
             </div>
             <div>
               <p className="font-heading font-semibold text-sm">Liked Colleges</p>
-              <p className="text-xs text-muted-foreground">{liked.length} colleges shortlisted</p>
+              <p className="text-xs text-muted-foreground">{liked.length} colleges shortlisted (saved)</p>
             </div>
           </CardContent>
         </Card>
@@ -343,30 +427,24 @@ const DashboardPage = () => {
               <CardContent className="p-8 text-center">
                 <GraduationCap className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
                 <p className="text-muted-foreground">
-                  {!isProfileComplete
-                    ? "Complete your profile so we can match you with the right colleges"
-                    : !((profile as any)?.stream) || !((profile as any)?.degree_type)
-                      ? "Pick your degree type and stream in your profile so we can recommend matching colleges"
-                      : quizCompleted
-                        ? "No colleges fit your strict criteria. Try adding more target countries, broadening your stream, or softening the 'critical' answers in the quiz."
-                        : "Take the aptitude quiz to unlock personalised recommendations"}
+                  {!hasAnyPref
+                    ? "Pick your 1st, 2nd & 3rd preference in your profile so we can match colleges."
+                    : "No colleges fit your strict criteria. Try adding more target countries, picking a 2nd/3rd preference, or softening the 'critical' answers in the quiz."}
                 </p>
-                {isProfileComplete && (profile as any)?.stream && (profile as any)?.degree_type && (
+                {hasAnyPref && (
                   <div className="mt-4 text-xs text-muted-foreground/80 space-y-1 max-w-md mx-auto text-left bg-secondary/40 rounded-lg p-3">
                     <p className="label-mono mb-1">Active filters</p>
-                    <p>· Degree: <strong>{(profile as any).degree_type}</strong> · Stream: <strong>{(profile as any).stream}</strong></p>
+                    {(profile as any)?.stream_pref_1 && <p>· 1st: <strong>{getPreference((profile as any).stream_pref_1)?.label}</strong></p>}
+                    {(profile as any)?.stream_pref_2 && <p>· 2nd: <strong>{getPreference((profile as any).stream_pref_2)?.label}</strong></p>}
+                    {(profile as any)?.stream_pref_3 && <p>· 3rd: <strong>{getPreference((profile as any).stream_pref_3)?.label}</strong></p>}
                     <p>· Countries: <strong>{(profile?.target_countries || []).join(", ") || "Any"}</strong></p>
-                    <p>· Grade tier: <strong>{(profile as any).grade_tier || "average"}</strong></p>
+                    <p>· Grade tier: <strong>{(profile as any).grade_tier || deriveGradeTier(profile?.grades)}</strong></p>
                     {quizPrefs.hostel_priority === "critical" && <p>· Hostel: <strong>required (in-house)</strong></p>}
-                    {quizPrefs.fees_priority === "critical" && <p>· Fees: <strong>budget-strict (no expensive colleges)</strong></p>}
+                    {quizPrefs.fees_priority === "critical" && <p>· Fees: <strong>budget-strict</strong></p>}
                   </div>
                 )}
-                <Link to={!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type) ? "/profile" : quizCompleted ? "/profile" : "/quiz"}>
-                  <Button className="mt-4" size="sm">
-                    {!isProfileComplete || !((profile as any)?.stream) || !((profile as any)?.degree_type)
-                      ? "Refine your profile"
-                      : quizCompleted ? "Adjust your profile" : "Begin the aptitude quiz"}
-                  </Button>
+                <Link to="/profile">
+                  <Button className="mt-4" size="sm">{hasAnyPref ? "Adjust your preferences" : "Set preferences"}</Button>
                 </Link>
               </CardContent>
             </Card>
@@ -375,15 +453,15 @@ const DashboardPage = () => {
               <CardContent className="p-8 text-center">
                 <Sparkles className="mx-auto h-12 w-12 text-primary/50 mb-3" />
                 <p className="font-heading font-semibold">You've seen all {recommendations.length} recommendations!</p>
-                <p className="text-sm text-muted-foreground mt-1">You liked {liked.length} universities</p>
-                <Button className="mt-4" size="sm" onClick={() => { setSwiped(new Set()); setLiked([]); }}>
-                  Start Over
+                <p className="text-sm text-muted-foreground mt-1">{liked.length} are saved in your shortlist</p>
+                <Button className="mt-4" size="sm" onClick={() => setSwiped(new Set())}>
+                  Start over
                 </Button>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
-              <div className="relative h-[420px] w-full max-w-sm mx-auto">
+              <div className="relative h-[440px] w-full max-w-sm mx-auto">
                 <AnimatePresence>
                   {unswiped.slice(0, 3).map((uni, i) => (
                     <motion.div
@@ -422,6 +500,7 @@ const DashboardPage = () => {
           <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
             <Newspaper className="h-5 w-5 text-accent" /> College News
           </h2>
+          <p className="text-[11px] text-muted-foreground/70 mb-2">Each item links to the exact source article.</p>
           <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
             {relevantNews.map((item, i) => (
               <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" className="block">
@@ -439,7 +518,7 @@ const DashboardPage = () => {
                         </div>
                         <p className="text-[10px] text-muted-foreground/70 mt-1 flex items-center gap-1">
                           <ExternalLink className="h-2.5 w-2.5" />
-                          {item.source}
+                          Source: {item.source}
                         </p>
                       </div>
                     </div>
@@ -451,22 +530,34 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Liked colleges */}
+      {/* Liked colleges - persistent */}
       {liked.length > 0 && (
         <div>
           <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
             <Heart className="h-5 w-5 text-green-500 fill-green-500" /> Your Shortlist ({liked.length})
+            <span className="text-xs text-muted-foreground font-normal ml-2">— saved across sessions</span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {liked.map(name => {
+            {liked.map(({ name }) => {
               const uni = ALL_UNIS.find(u => u.name === name);
-              if (!uni) return null;
+              if (!uni) return (
+                <Card key={name} className="glass-card">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <span className="font-heading text-sm">{name}</span>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeLiked(name)}>
+                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
               return (
                 <Card key={name} className="glass-card">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-heading font-semibold text-sm">{uni.name}</h3>
-                      <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">{uni.match}%</Badge>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 -mr-1 -mt-1" onClick={() => removeLiked(name)}>
+                        <Trash2 className="h-3 w-3 text-muted-foreground" />
+                      </Button>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{uni.country}</span>

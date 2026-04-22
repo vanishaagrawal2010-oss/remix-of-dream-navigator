@@ -1,4 +1,4 @@
-import { Link, useLocation, Outlet, Navigate } from "react-router-dom";
+import { Link, useLocation, Outlet, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { LayoutDashboard, MessageSquare, User, LogOut, Loader2, Map, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,20 @@ const navItems = [
 const AppLayout = () => {
   const { user, loading, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Navigate to a route AND scroll to top (used by footer links so users land
+  // at the very start of the target page).
+  const goTo = (to: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (location.pathname === to) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      navigate(to);
+      // After route change, ensure we're at the top.
+      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+    }
+  };
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" strokeWidth={1.25} /></div>;
   if (!user) return <Navigate to="/auth" replace />;
@@ -93,10 +107,11 @@ const AppLayout = () => {
           <div className="md:col-span-3">
             <p className="label-mono opacity-60 mb-4">The Studio</p>
             <ul className="space-y-2 font-heading text-lg">
-              <li><Link to="/dashboard" className="opacity-90 hover:opacity-100 transition-opacity">Atelier</Link></li>
-              <li><Link to="/roadmap" className="opacity-90 hover:opacity-100 transition-opacity">Roadmap</Link></li>
-              <li><Link to="/quiz" className="opacity-90 hover:opacity-100 transition-opacity">Aptitude</Link></li>
-              <li><Link to="/chat" className="opacity-90 hover:opacity-100 transition-opacity">Counsel</Link></li>
+              <li><a href="/dashboard" onClick={goTo("/dashboard")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">Atelier</a></li>
+              <li><a href="/roadmap" onClick={goTo("/roadmap")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">Roadmap</a></li>
+              <li><a href="/quiz" onClick={goTo("/quiz")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">Aptitude</a></li>
+              <li><a href="/chat" onClick={goTo("/chat")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">Counsel</a></li>
+              <li><a href="/profile" onClick={goTo("/profile")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">You</a></li>
             </ul>
           </div>
           <div className="md:col-span-4">

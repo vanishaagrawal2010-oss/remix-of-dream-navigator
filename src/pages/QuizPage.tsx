@@ -18,7 +18,7 @@ type Question = {
   options: { value: string; label: string }[];
 };
 
-// Inspired by Holland-codes & Career Counselling Master Guide framework
+// Aptitude framework — preferences, work-style and career goals
 const QUESTIONS: Question[] = [
   {
     id: "fees_priority",
@@ -65,7 +65,7 @@ const QUESTIONS: Question[] = [
   {
     id: "work_style",
     text: "How do you naturally work and learn best?",
-    hint: "From the Career Master Guide aptitude framework.",
+    hint: "Helps us match you to colleges and programs that fit your style.",
     options: [
       { value: "investigative", label: "Analytical — I love solving complex problems" },
       { value: "realistic", label: "Hands-on — I learn by building & doing" },
