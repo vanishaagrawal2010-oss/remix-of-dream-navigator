@@ -91,12 +91,19 @@ const SwipeCard = ({ uni, onSwipe }: { uni: University & { matchReason?: string 
   return (
     <motion.div
       className="absolute inset-0"
-      style={{ x, rotate }}
+      style={{ x, rotate, touchAction: "pan-y" }}
       drag="x"
+      dragDirectionLock
+      dragElastic={0.7}
+      dragMomentum={false}
       dragConstraints={{ left: 0, right: 0 }}
+      whileTap={{ cursor: "grabbing" }}
+      transition={{ type: "spring", stiffness: 380, damping: 32 }}
       onDragEnd={(_, info) => {
-        if (info.offset.x > 100) onSwipe("right");
-        else if (info.offset.x < -100) onSwipe("left");
+        const dist = info.offset.x;
+        const vel = info.velocity.x;
+        if (dist > 90 || vel > 600) onSwipe("right");
+        else if (dist < -90 || vel < -600) onSwipe("left");
       }}
     >
       <Card className="h-full glass-card overflow-hidden cursor-grab active:cursor-grabbing select-none">
