@@ -290,7 +290,8 @@ const ChatPage = () => {
           </ScrollArea>
         )}
 
-        <div className="border-t border-border p-3 md:p-4 pb-6 md:pb-8 bg-background/80 backdrop-blur sticky bottom-0">
+        {/* Typing bar — lifted off the very bottom for breathing room */}
+        <div className="border-t border-border p-3 md:p-4 mb-6 md:mb-10 bg-background/80 backdrop-blur">
           <form onSubmit={e => { e.preventDefault(); sendMessage(); }} className="max-w-3xl mx-auto flex gap-2">
             <Input
               value={input}
