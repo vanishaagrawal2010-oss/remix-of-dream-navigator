@@ -172,6 +172,75 @@ export const ALL_UNIS: University[] = [
   { name: "University of Tokyo", country: "Japan", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Dec 1, 2025", scholarshipUrl: "https://www.u-tokyo.ac.jp/en/", match: 78, tuition: "¥535,800/yr", acceptanceRate: "34%", difficulty: "Hard", ranking: 28, city: "Tokyo", hostel: "Good", campus: "Urban" },
 ];
 
+// ============ EXTRA: PHARMA / MEDICINE / NURSING / ALLIED / SCIENCES / COMMERCE / ARCH ============
+ALL_UNIS.push(
+  // Pharmacy
+  { name: "NIPER Mohali", country: "India", program: "Pharmacy", degree: "BPharm", stream: "Pharmacy", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.niper.gov.in/", match: 92, tuition: "₹80,000/yr", acceptanceRate: "3%", difficulty: "Very Hard", ranking: 220, city: "Mohali", hostel: "Good", campus: "Modern" },
+  { name: "Jamia Hamdard", country: "India", program: "Pharmacy", degree: "BPharm", stream: "Pharmacy", deadline: "Jun 30, 2026", scholarshipUrl: "https://jamiahamdard.edu/", match: 84, tuition: "₹1,80,000/yr", acceptanceRate: "12%", difficulty: "Hard", ranking: 480, city: "New Delhi", hostel: "Average", campus: "Urban" },
+  { name: "BITS Pilani Pharmacy", country: "India", program: "Pharmacy", degree: "BPharm", stream: "Pharmacy", deadline: "Jul 1, 2026", scholarshipUrl: "https://www.bits-pilani.ac.in/", match: 82, tuition: "₹4,50,000/yr", acceptanceRate: "6%", difficulty: "Hard", ranking: 500, city: "Pilani", hostel: "Good", campus: "Sprawling" },
+  { name: "Manipal College of Pharmaceutical Sciences", country: "India", program: "Pharmacy", degree: "BPharm", stream: "Pharmacy", deadline: "May 30, 2026", scholarshipUrl: "https://manipal.edu/mcops.html", match: 76, tuition: "₹3,80,000/yr", acceptanceRate: "20%", difficulty: "Moderate", ranking: 700, city: "Manipal", hostel: "Excellent", campus: "Modern" },
+  { name: "LM College of Pharmacy", country: "India", program: "Pharmacy", degree: "BPharm", stream: "Pharmacy", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.lmcp.edu.in/", match: 70, tuition: "₹60,000/yr", acceptanceRate: "35%", difficulty: "Moderate", ranking: 850, city: "Ahmedabad", hostel: "Average", campus: "Compact" },
+  { name: "ISF College of Pharmacy", country: "India", program: "Pharmacy", degree: "BPharm", stream: "Pharmacy", deadline: "Jul 30, 2026", scholarshipUrl: "https://isfcp.org/", match: 60, tuition: "₹1,20,000/yr", acceptanceRate: "70%", difficulty: "Easy", ranking: 1300, city: "Moga", hostel: "Average", campus: "Modern" },
+
+  // Medicine extras
+  { name: "MAMC Delhi", country: "India", program: "Medicine", degree: "MBBS", stream: "General", deadline: "May 15, 2026", scholarshipUrl: "https://mamc.delhi.gov.in/", match: 90, tuition: "₹10,000/yr", acceptanceRate: "1%", difficulty: "Very Hard", ranking: 350, city: "New Delhi", hostel: "Average", campus: "Compact" },
+  { name: "KGMU Lucknow", country: "India", program: "Medicine", degree: "MBBS", stream: "General", deadline: "May 20, 2026", scholarshipUrl: "https://www.kgmu.org/", match: 86, tuition: "₹54,000/yr", acceptanceRate: "2%", difficulty: "Very Hard", ranking: 480, city: "Lucknow", hostel: "Average", campus: "Sprawling" },
+  { name: "Grant Medical College Mumbai", country: "India", program: "Medicine", degree: "MBBS", stream: "General", deadline: "May 20, 2026", scholarshipUrl: "https://ggmcjjh.org/", match: 84, tuition: "₹85,000/yr", acceptanceRate: "3%", difficulty: "Hard", ranking: 550, city: "Mumbai", hostel: "Average", campus: "Compact" },
+  { name: "Sri Ramachandra Medical College", country: "India", program: "Medicine", degree: "MBBS", stream: "General", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.sriramachandra.edu.in/", match: 70, tuition: "₹22,00,000/yr", acceptanceRate: "20%", difficulty: "Moderate", ranking: 750, city: "Chennai", hostel: "Good", campus: "Modern" },
+  { name: "Hind Institute of Medical Sciences", country: "India", program: "Medicine", degree: "MBBS", stream: "General", deadline: "Jul 10, 2026", scholarshipUrl: "https://www.hims.edu.in/", match: 55, tuition: "₹14,00,000/yr", acceptanceRate: "55%", difficulty: "Easy", ranking: 1400, city: "Barabanki", hostel: "Average", campus: "Modern" },
+
+  // Dentistry / AYUSH / Nursing / Physio / Vet
+  { name: "Maulana Azad Institute of Dental Sciences", country: "India", program: "Dentistry", degree: "BDS", stream: "Dentistry", deadline: "Jun 15, 2026", scholarshipUrl: "https://maids.ac.in/", match: 85, tuition: "₹12,000/yr", acceptanceRate: "2%", difficulty: "Hard", ranking: 600, city: "New Delhi", hostel: "Average", campus: "Compact" },
+  { name: "Manipal College of Dental Sciences", country: "India", program: "Dentistry", degree: "BDS", stream: "Dentistry", deadline: "May 30, 2026", scholarshipUrl: "https://manipal.edu/mcods-manipal.html", match: 75, tuition: "₹6,50,000/yr", acceptanceRate: "20%", difficulty: "Moderate", ranking: 800, city: "Manipal", hostel: "Excellent", campus: "Modern" },
+  { name: "BHU Faculty of Ayurveda", country: "India", program: "AYUSH", degree: "BAMS", stream: "Ayurveda", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.bhu.ac.in/", match: 80, tuition: "₹18,000/yr", acceptanceRate: "5%", difficulty: "Hard", ranking: 700, city: "Varanasi", hostel: "Good", campus: "Sprawling" },
+  { name: "National Institute of Homoeopathy", country: "India", program: "AYUSH", degree: "BHMS", stream: "Homoeopathy", deadline: "Jun 30, 2026", scholarshipUrl: "https://nih.gov.in/", match: 72, tuition: "₹15,000/yr", acceptanceRate: "10%", difficulty: "Moderate", ranking: 900, city: "Kolkata", hostel: "Average", campus: "Compact" },
+  { name: "AIIMS College of Nursing Delhi", country: "India", program: "Nursing", degree: "BSc Nursing", stream: "Nursing", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.aiims.edu/", match: 88, tuition: "₹2,000/yr", acceptanceRate: "3%", difficulty: "Hard", ranking: 500, city: "New Delhi", hostel: "Good", campus: "Compact" },
+  { name: "CMC Vellore College of Nursing", country: "India", program: "Nursing", degree: "BSc Nursing", stream: "Nursing", deadline: "Apr 30, 2026", scholarshipUrl: "https://www.cmch-vellore.edu/", match: 80, tuition: "₹50,000/yr", acceptanceRate: "10%", difficulty: "Moderate", ranking: 700, city: "Vellore", hostel: "Good", campus: "Compact" },
+  { name: "Manipal College of Nursing", country: "India", program: "Nursing", degree: "BSc Nursing", stream: "Nursing", deadline: "May 30, 2026", scholarshipUrl: "https://manipal.edu/mcon-manipal.html", match: 70, tuition: "₹1,80,000/yr", acceptanceRate: "30%", difficulty: "Easy", ranking: 950, city: "Manipal", hostel: "Excellent", campus: "Modern" },
+  { name: "ISIC Institute of Rehabilitation Sciences", country: "India", program: "Physiotherapy", degree: "BPT", stream: "Physiotherapy", deadline: "Jul 15, 2026", scholarshipUrl: "https://isiconline.org/", match: 72, tuition: "₹1,50,000/yr", acceptanceRate: "30%", difficulty: "Moderate", ranking: 900, city: "New Delhi", hostel: "Average", campus: "Modern" },
+  { name: "IVRI Bareilly", country: "India", program: "Veterinary", degree: "BVSc", stream: "Veterinary", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.ivri.nic.in/", match: 80, tuition: "₹25,000/yr", acceptanceRate: "8%", difficulty: "Hard", ranking: 650, city: "Bareilly", hostel: "Good", campus: "Sprawling" },
+
+  // Pure sciences (BSc)
+  { name: "St Stephen's College", country: "India", program: "Sciences", degree: "BSc", stream: "Physics", deadline: "Jul 5, 2026", scholarshipUrl: "https://www.ststephens.edu/", match: 90, tuition: "₹40,000/yr", acceptanceRate: "3%", difficulty: "Hard", ranking: 380, city: "New Delhi", hostel: "Average", campus: "Compact" },
+  { name: "Miranda House", country: "India", program: "Sciences", degree: "BSc", stream: "Chemistry", deadline: "Jul 5, 2026", scholarshipUrl: "https://www.mirandahouse.ac.in/", match: 86, tuition: "₹35,000/yr", acceptanceRate: "5%", difficulty: "Hard", ranking: 420, city: "New Delhi", hostel: "Average", campus: "Compact" },
+  { name: "Fergusson College", country: "India", program: "Sciences", degree: "BSc", stream: "Mathematics", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.fergusson.edu/", match: 78, tuition: "₹25,000/yr", acceptanceRate: "20%", difficulty: "Moderate", ranking: 700, city: "Pune", hostel: "Limited", campus: "Compact" },
+  { name: "IISc Bangalore (UG)", country: "India", program: "Sciences", degree: "BSc", stream: "Physics", deadline: "Apr 30, 2026", scholarshipUrl: "https://www.iisc.ac.in/", match: 95, tuition: "₹30,000/yr", acceptanceRate: "1%", difficulty: "Very Hard", ranking: 200, city: "Bangalore", hostel: "Excellent", campus: "Sprawling" },
+  { name: "IISER Pune", country: "India", program: "Sciences", degree: "BSc", stream: "Physics", deadline: "May 30, 2026", scholarshipUrl: "https://www.iiserpune.ac.in/", match: 88, tuition: "₹22,000/yr", acceptanceRate: "3%", difficulty: "Very Hard", ranking: 350, city: "Pune", hostel: "Excellent", campus: "Modern" },
+  { name: "Deshbandhu College", country: "India", program: "Sciences", degree: "BSc", stream: "Mathematics", deadline: "Jul 10, 2026", scholarshipUrl: "https://deshbandhucollege.ac.in/", match: 60, tuition: "₹18,000/yr", acceptanceRate: "60%", difficulty: "Easy", ranking: 1100, city: "New Delhi", hostel: "Limited", campus: "Compact" },
+
+  // Commerce / CA
+  { name: "Hansraj College", country: "India", program: "Commerce", degree: "BCom", stream: "Honours", deadline: "Jul 5, 2026", scholarshipUrl: "https://www.hansrajcollege.co.in/", match: 86, tuition: "₹30,000/yr", acceptanceRate: "5%", difficulty: "Hard", ranking: 450, city: "New Delhi", hostel: "Average", campus: "Compact" },
+  { name: "Loyola College Commerce", country: "India", program: "Commerce", degree: "BCom", stream: "General", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.loyolacollege.edu/", match: 80, tuition: "₹40,000/yr", acceptanceRate: "15%", difficulty: "Moderate", ranking: 700, city: "Chennai", hostel: "Limited", campus: "Compact" },
+  { name: "Narsee Monjee College", country: "India", program: "Commerce", degree: "BCom", stream: "Honours", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.nmcollege.in/", match: 78, tuition: "₹35,000/yr", acceptanceRate: "20%", difficulty: "Moderate", ranking: 750, city: "Mumbai", hostel: "Limited", campus: "Compact" },
+  { name: "ICAI (CA Foundation)", country: "India", program: "Commerce", degree: "CA", stream: "Chartered Accountancy", deadline: "Rolling", scholarshipUrl: "https://www.icai.org/", match: 85, tuition: "₹15,000 total", acceptanceRate: "Open", difficulty: "Hard", ranking: 0, city: "All India", hostel: "Limited", campus: "Urban" },
+
+  // Architecture / Hotel / Journalism / Fine arts
+  { name: "School of Planning and Architecture Delhi", country: "India", program: "Architecture", degree: "BArch", stream: "Architecture", deadline: "Jun 15, 2026", scholarshipUrl: "https://spa.ac.in/", match: 90, tuition: "₹50,000/yr", acceptanceRate: "3%", difficulty: "Very Hard", ranking: 300, city: "New Delhi", hostel: "Good", campus: "Compact" },
+  { name: "CEPT University", country: "India", program: "Architecture", degree: "BArch", stream: "Architecture", deadline: "May 30, 2026", scholarshipUrl: "https://cept.ac.in/", match: 86, tuition: "₹2,80,000/yr", acceptanceRate: "10%", difficulty: "Hard", ranking: 500, city: "Ahmedabad", hostel: "Average", campus: "Modern" },
+  { name: "IHM Pusa Delhi", country: "India", program: "Hospitality", degree: "BHM", stream: "Hotel Management", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.ihmpusa.net/", match: 82, tuition: "₹95,000/yr", acceptanceRate: "8%", difficulty: "Hard", ranking: 600, city: "New Delhi", hostel: "Good", campus: "Compact" },
+  { name: "Welcomgroup Graduate School (Manipal)", country: "India", program: "Hospitality", degree: "BHM", stream: "Hotel Management", deadline: "May 30, 2026", scholarshipUrl: "https://manipal.edu/wgsha.html", match: 72, tuition: "₹3,50,000/yr", acceptanceRate: "30%", difficulty: "Moderate", ranking: 850, city: "Manipal", hostel: "Excellent", campus: "Modern" },
+  { name: "IIMC Delhi", country: "India", program: "Journalism", degree: "BJMC", stream: "Journalism", deadline: "Jun 30, 2026", scholarshipUrl: "https://iimc.gov.in/", match: 85, tuition: "₹1,30,000/yr", acceptanceRate: "5%", difficulty: "Hard", ranking: 500, city: "New Delhi", hostel: "Average", campus: "Compact" },
+  { name: "Symbiosis Institute of Media", country: "India", program: "Journalism", degree: "BJMC", stream: "Journalism", deadline: "Apr 30, 2026", scholarshipUrl: "https://www.simc.edu/", match: 75, tuition: "₹3,90,000/yr", acceptanceRate: "20%", difficulty: "Moderate", ranking: 800, city: "Pune", hostel: "Good", campus: "Modern" },
+  { name: "Sir J.J. School of Art", country: "India", program: "Fine Arts", degree: "BFA", stream: "Fine Arts", deadline: "Jun 15, 2026", scholarshipUrl: "https://sirjjschoolofart.in/", match: 80, tuition: "₹10,000/yr", acceptanceRate: "10%", difficulty: "Hard", ranking: 600, city: "Mumbai", hostel: "Limited", campus: "Compact" },
+
+  // Agriculture / Vet extras
+  { name: "IARI New Delhi", country: "India", program: "Agriculture", degree: "BSc", stream: "Agriculture", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.iari.res.in/", match: 84, tuition: "₹15,000/yr", acceptanceRate: "5%", difficulty: "Hard", ranking: 450, city: "New Delhi", hostel: "Good", campus: "Sprawling" },
+  { name: "GBPUAT Pantnagar", country: "India", program: "Agriculture", degree: "BSc", stream: "Agriculture", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.gbpuat.ac.in/", match: 75, tuition: "₹40,000/yr", acceptanceRate: "20%", difficulty: "Moderate", ranking: 750, city: "Pantnagar", hostel: "Good", campus: "Sprawling" },
+);
+
+// ============ ADDITIONAL ENGINEERING / CS / IT (more options across tiers) ============
+ALL_UNIS.push(
+  { name: "IIT Hyderabad", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.iith.ac.in/", match: 90, tuition: "₹2,00,000/yr", acceptanceRate: "3%", difficulty: "Very Hard", ranking: 500, city: "Hyderabad", hostel: "Good", campus: "Modern" },
+  { name: "IIT BHU Varanasi", country: "India", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Jun 15, 2026", scholarshipUrl: "https://www.iitbhu.ac.in/", match: 88, tuition: "₹2,00,000/yr", acceptanceRate: "3%", difficulty: "Very Hard", ranking: 550, city: "Varanasi", hostel: "Good", campus: "Sprawling" },
+  { name: "NIT Calicut", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jun 20, 2026", scholarshipUrl: "https://www.nitc.ac.in/", match: 80, tuition: "₹1,50,000/yr", acceptanceRate: "9%", difficulty: "Hard", ranking: 700, city: "Kozhikode", hostel: "Good", campus: "Sprawling" },
+  { name: "NIT Rourkela", country: "India", program: "Engineering", degree: "BTech", stream: "Electrical", deadline: "Jun 20, 2026", scholarshipUrl: "https://www.nitrkl.ac.in/", match: 78, tuition: "₹1,50,000/yr", acceptanceRate: "12%", difficulty: "Hard", ranking: 750, city: "Rourkela", hostel: "Good", campus: "Sprawling" },
+  { name: "Jadavpur University", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jun 30, 2026", scholarshipUrl: "https://jadavpuruniversity.in/", match: 80, tuition: "₹15,000/yr", acceptanceRate: "10%", difficulty: "Hard", ranking: 700, city: "Kolkata", hostel: "Average", campus: "Urban" },
+  { name: "Anna University", country: "India", program: "Engineering", degree: "BTech", stream: "Civil", deadline: "Jul 15, 2026", scholarshipUrl: "https://www.annauniv.edu/", match: 72, tuition: "₹50,000/yr", acceptanceRate: "30%", difficulty: "Moderate", ranking: 900, city: "Chennai", hostel: "Average", campus: "Urban" },
+  { name: "Bennett University", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.bennett.edu.in/", match: 68, tuition: "₹3,80,000/yr", acceptanceRate: "55%", difficulty: "Easy", ranking: 1200, city: "Greater Noida", hostel: "Excellent", campus: "Modern" },
+  { name: "UPES Dehradun", country: "India", program: "Engineering", degree: "BTech", stream: "Computer Science", deadline: "Jun 30, 2026", scholarshipUrl: "https://www.upes.ac.in/", match: 65, tuition: "₹3,50,000/yr", acceptanceRate: "65%", difficulty: "Easy", ranking: 1100, city: "Dehradun", hostel: "Good", campus: "Modern" },
+  { name: "Jain University", country: "India", program: "Engineering", degree: "BTech", stream: "Information Technology", deadline: "Jul 30, 2026", scholarshipUrl: "https://www.jainuniversity.ac.in/", match: 60, tuition: "₹2,80,000/yr", acceptanceRate: "75%", difficulty: "Easy", ranking: 1300, city: "Bangalore", hostel: "Good", campus: "Modern" },
+);
+
 // =====================================================================
 // STUDY PREFERENCES — the curated "Degree — Stream" combos a student
 // can pick as their 1st / 2nd / 3rd preference. Each value encodes
@@ -265,6 +334,30 @@ export const STREAM_SYNONYMS: Record<string, string[]> = {
   "law": ["general"],
   "design": ["general"],
 };
+
+// Extra synonyms for newly-added pref streams
+Object.assign(STREAM_SYNONYMS, {
+  "pharmacy": ["pharmacy", "pharmaceutical"],
+  "dentistry": ["dental", "dentistry"],
+  "ayurveda": ["ayurveda", "ayush"],
+  "homoeopathy": ["homoeopathy", "homeopathy", "ayush"],
+  "nursing": ["nursing"],
+  "physiotherapy": ["physiotherapy", "rehabilitation"],
+  "veterinary": ["veterinary", "vet"],
+  "agriculture": ["agriculture", "agri"],
+  "physics": ["physics", "natural sciences"],
+  "chemistry": ["chemistry"],
+  "mathematics": ["mathematics", "maths"],
+  "honours": ["general", "honours"],
+  "chartered accountancy": ["chartered accountancy", "ca", "general"],
+  "hotel management": ["hotel management", "hospitality"],
+  "journalism": ["journalism", "media"],
+  "fine arts": ["fine arts", "art"],
+  "architecture": ["architecture"],
+});
+
+// Extra degree equivalents (BS/BTech/BE) already exist; broaden BSc family.
+["bsc", "b.sc", "bsc nursing", "bpharm", "b.pharm", "bds", "bams", "bhms", "bpt", "bvsc", "bcom", "b.com", "ca", "barch", "b.arch", "bjmc", "bfa", "bhm"].forEach(d => UNDERGRAD_EQUIVALENTS.add(d));
 
 // Undergrad bachelor's equivalents
 export const UNDERGRAD_EQUIVALENTS = new Set(["bs", "btech", "be", "b.tech", "b.e"]);
