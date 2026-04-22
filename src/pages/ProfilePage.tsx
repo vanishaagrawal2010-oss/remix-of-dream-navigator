@@ -10,11 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GraduationCap, Loader2, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { STUDY_PREFERENCES } from "@/data/universities";
 
 const COUNTRY_OPTIONS = ["USA", "UK", "Canada", "Australia", "Germany", "Netherlands", "Singapore", "Japan", "France", "Switzerland", "India"];
-const INTEREST_OPTIONS = ["Computer Science", "Engineering", "Business", "Medicine", "Law", "Arts", "Sciences", "Mathematics", "Psychology", "Economics"];
-const DEGREE_OPTIONS = ["BTech", "BS", "BA", "MS", "MBA", "PhD", "BBA", "MCA", "ME/MTech"];
-const STREAM_OPTIONS = ["Computer Science", "Information Technology", "Electronics", "Mechanical", "Civil", "Chemical", "Aerospace", "Data Science", "AI/ML", "Biotechnology", "Finance", "Marketing", "General"];
 const CLASS_OPTIONS = ["Class 9", "Class 10", "Class 11", "Class 12", "Gap Year", "1st Year UG", "2nd Year UG", "3rd Year UG", "Final Year UG", "Postgrad"];
 
 const ProfilePage = () => {
@@ -29,10 +27,10 @@ const ProfilePage = () => {
     school: "",
     grades: "",
     budget: "",
-    degree_type: "",
-    stream: "",
     current_class: "",
-    interests: [] as string[],
+    stream_pref_1: "",
+    stream_pref_2: "",
+    stream_pref_3: "",
     target_countries: [] as string[],
     extracurriculars: [] as string[],
   });
@@ -45,10 +43,10 @@ const ProfilePage = () => {
         school: profile.school || "",
         grades: profile.grades || "",
         budget: profile.budget || "",
-        degree_type: (profile as any).degree_type || "",
-        stream: (profile as any).stream || "",
         current_class: (profile as any).current_class || "",
-        interests: profile.interests || [],
+        stream_pref_1: (profile as any).stream_pref_1 || "",
+        stream_pref_2: (profile as any).stream_pref_2 || "",
+        stream_pref_3: (profile as any).stream_pref_3 || "",
         target_countries: profile.target_countries || [],
         extracurriculars: profile.extracurriculars || [],
       });
@@ -58,10 +56,12 @@ const ProfilePage = () => {
   if (authLoading || profileLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Navigate to="/auth" replace />;
 
-  const toggleItem = (key: "interests" | "target_countries", item: string) => {
+  const toggleCountry = (item: string) => {
     setForm(prev => ({
       ...prev,
-      [key]: prev[key].includes(item) ? prev[key].filter(i => i !== item) : [...prev[key], item],
+      target_countries: prev.target_countries.includes(item)
+        ? prev.target_countries.filter(i => i !== item)
+        : [...prev.target_countries, item],
     }));
   };
 
@@ -75,15 +75,34 @@ const ProfilePage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await updateProfile(form as any) || {};
+    // Mirror 1st preference into legacy degree/stream so existing logic keeps working
+    const p1 = STUDY_PREFERENCES.find(p => p.value === form.stream_pref_1);
+    const payload: any = {
+      ...form,
+      degree_type: p1?.degree || null,
+      stream: p1?.stream || null,
+    };
+    const { error } = await updateProfile(payload) || {};
     if (error) {
       toast({ title: "Error", description: "Failed to save profile", variant: "destructive" });
     } else {
-      toast({ title: "Profile saved!" });
+      toast({ title: "Profile saved" });
       navigate("/dashboard");
     }
     setSaving(false);
   };
+
+  const usedPrefs = new Set([form.stream_pref_1, form.stream_pref_2, form.stream_pref_3].filter(Boolean));
+  const PrefSelect = ({ value, onChange, exclude, placeholder }: { value: string; onChange: (v: string) => void; exclude: string[]; placeholder: string }) => (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectContent>
+        {STUDY_PREFERENCES.filter(p => !exclude.includes(p.value) || p.value === value).map(p => (
+          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -92,87 +111,66 @@ const ProfilePage = () => {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
             <GraduationCap className="h-7 w-7 text-primary" />
           </div>
-          <h1 className="font-heading text-3xl font-bold gradient-text">Complete Your Profile</h1>
-          <p className="mt-2 text-muted-foreground">Help us personalise your university recommendations</p>
+          <h1 className="font-heading text-3xl font-bold gradient-text">Your profile</h1>
+          <p className="mt-2 text-muted-foreground">Edits save instantly across recommendations & roadmap.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="glass-card">
-            <CardHeader><CardTitle className="font-heading text-lg">Basic Info</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-heading text-lg">Basic info</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>Full Name</Label>
+                <Label>Full name</Label>
                 <Input value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required />
               </div>
               <div>
-                <Label>School / University</Label>
+                <Label>School / college</Label>
                 <Input value={form.school} onChange={e => setForm(p => ({ ...p, school: e.target.value }))} required />
               </div>
               <div>
-                <Label>Grades (e.g. GPA 3.8, 95%, A-levels AAA)</Label>
+                <Label>Grades (e.g. GPA 3.8, 95%, AAA)</Label>
                 <Input value={form.grades} onChange={e => setForm(p => ({ ...p, grades: e.target.value }))} required />
               </div>
               <div>
-                <Label>Budget (annual tuition + living)</Label>
+                <Label>Annual budget (tuition + living)</Label>
                 <Input value={form.budget} onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} placeholder="e.g. $30,000/year" />
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardHeader><CardTitle className="font-heading text-lg">Degree & Stream</CardTitle><CardDescription>What are you looking to study?</CardDescription></CardHeader>
-            <CardContent className="space-y-4">
               <div>
-                <Label>Degree Type</Label>
-                <Select value={form.degree_type} onValueChange={v => setForm(p => ({ ...p, degree_type: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select degree type" /></SelectTrigger>
-                  <SelectContent>
-                    {DEGREE_OPTIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Stream / Specialization</Label>
-                <Select value={form.stream} onValueChange={v => setForm(p => ({ ...p, stream: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select stream" /></SelectTrigger>
-                  <SelectContent>
-                    {STREAM_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Current Class / Year</Label>
+                <Label>Current class / year</Label>
                 <Select value={form.current_class} onValueChange={v => setForm(p => ({ ...p, current_class: v }))}>
                   <SelectTrigger><SelectValue placeholder="e.g. Class 11" /></SelectTrigger>
                   <SelectContent>
                     {CLASS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">Used to compute realistic prep timeline & target attempt year for your roadmap.</p>
+                <p className="text-xs text-muted-foreground mt-1">Used to compute realistic prep timeline & target attempt year.</p>
               </div>
             </CardContent>
           </Card>
 
           <Card className="glass-card">
-            <CardHeader><CardTitle className="font-heading text-lg">Interests</CardTitle><CardDescription>Select your academic interests</CardDescription></CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {INTEREST_OPTIONS.map(item => (
-                  <Badge
-                    key={item}
-                    variant={form.interests.includes(item) ? "default" : "outline"}
-                    className="cursor-pointer transition-all hover:scale-105"
-                    onClick={() => toggleItem("interests", item)}
-                  >
-                    {item}
-                  </Badge>
-                ))}
+            <CardHeader>
+              <CardTitle className="font-heading text-lg">Three preferences</CardTitle>
+              <CardDescription>What do you want to study? Pick a primary, plus optional 2nd and 3rd choices.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label className="label-mono text-xs">1st preference</Label>
+                <PrefSelect value={form.stream_pref_1} onChange={v => setForm(p => ({ ...p, stream_pref_1: v }))} exclude={[form.stream_pref_2, form.stream_pref_3].filter(Boolean)} placeholder="Select your top choice" />
+              </div>
+              <div>
+                <Label className="label-mono text-xs">2nd preference</Label>
+                <PrefSelect value={form.stream_pref_2} onChange={v => setForm(p => ({ ...p, stream_pref_2: v }))} exclude={[form.stream_pref_1, form.stream_pref_3].filter(Boolean)} placeholder="Optional" />
+              </div>
+              <div>
+                <Label className="label-mono text-xs">3rd preference</Label>
+                <PrefSelect value={form.stream_pref_3} onChange={v => setForm(p => ({ ...p, stream_pref_3: v }))} exclude={[form.stream_pref_1, form.stream_pref_2].filter(Boolean)} placeholder="Optional" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="glass-card">
-            <CardHeader><CardTitle className="font-heading text-lg">Target Countries</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-heading text-lg">Target countries</CardTitle></CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
                 {COUNTRY_OPTIONS.map(item => (
@@ -180,7 +178,7 @@ const ProfilePage = () => {
                     key={item}
                     variant={form.target_countries.includes(item) ? "default" : "outline"}
                     className="cursor-pointer transition-all hover:scale-105"
-                    onClick={() => toggleItem("target_countries", item)}
+                    onClick={() => toggleCountry(item)}
                   >
                     {item}
                   </Badge>
@@ -207,9 +205,9 @@ const ProfilePage = () => {
             </CardContent>
           </Card>
 
-          <Button type="submit" className="w-full font-heading font-semibold text-base py-6" disabled={saving}>
+          <Button type="submit" className="w-full font-heading font-semibold text-base py-6" disabled={saving || !form.stream_pref_1}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save & Continue
+            Save & continue
           </Button>
         </form>
       </div>
