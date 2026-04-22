@@ -171,3 +171,79 @@ export const ALL_UNIS: University[] = [
   { name: "Western Sydney University", country: "Australia", program: "Business", degree: "BBA", stream: "General", deadline: "Feb 1, 2026", scholarshipUrl: "https://www.westernsydney.edu.au/", match: 65, tuition: "AUD $32,000/yr", acceptanceRate: "85%", difficulty: "Easy", ranking: 380, city: "Sydney", hostel: "Average", campus: "Modern" },
   { name: "University of Tokyo", country: "Japan", program: "Engineering", degree: "BTech", stream: "Mechanical", deadline: "Dec 1, 2025", scholarshipUrl: "https://www.u-tokyo.ac.jp/en/", match: 78, tuition: "¥535,800/yr", acceptanceRate: "34%", difficulty: "Hard", ranking: 28, city: "Tokyo", hostel: "Good", campus: "Urban" },
 ];
+
+// =====================================================================
+// STUDY PREFERENCES — the curated "Degree — Stream" combos a student
+// can pick as their 1st / 2nd / 3rd preference. Each value encodes
+// degree + stream so it's a single dropdown choice.
+// =====================================================================
+export type StudyPreference = {
+  value: string;       // canonical id "btech:computer-science"
+  label: string;       // user-facing "BTech — Computer Science"
+  degree: string;      // "BTech"
+  stream: string;      // "Computer Science"
+};
+
+const buildPref = (degree: string, stream: string): StudyPreference => ({
+  value: `${degree.toLowerCase()}:${stream.toLowerCase().replace(/\s+/g, "-")}`,
+  label: `${degree} — ${stream}`,
+  degree,
+  stream,
+});
+
+export const STUDY_PREFERENCES: StudyPreference[] = [
+  // Engineering / CS
+  buildPref("BTech", "Computer Science"),
+  buildPref("BTech", "Information Technology"),
+  buildPref("BTech", "Data Science"),
+  buildPref("BTech", "AI/ML"),
+  buildPref("BTech", "Electronics"),
+  buildPref("BTech", "Electrical"),
+  buildPref("BTech", "Mechanical"),
+  buildPref("BTech", "Civil"),
+  buildPref("BTech", "Chemical"),
+  buildPref("BTech", "Aerospace"),
+  buildPref("BTech", "Biotechnology"),
+  buildPref("BS", "Computer Science"),
+  buildPref("BS", "Data Science"),
+  // Business
+  buildPref("BBA", "Finance"),
+  buildPref("BBA", "Marketing"),
+  buildPref("BBA", "General"),
+  buildPref("MBA", "General"),
+  // Arts / Humanities
+  buildPref("BA", "Economics"),
+  buildPref("BA", "Psychology"),
+  buildPref("BA", "General"),
+  // Medicine / Law / Design
+  buildPref("MBBS", "General"),
+  buildPref("BA", "Law"),
+  buildPref("BA", "Design"),
+  // Postgrad
+  buildPref("MS", "Computer Science"),
+  buildPref("ME/MTech", "Computer Science"),
+  buildPref("PhD", "General"),
+];
+
+// Lookup helper
+export const getPreference = (value: string | null | undefined): StudyPreference | undefined =>
+  value ? STUDY_PREFERENCES.find(p => p.value === value) : undefined;
+
+// Stream synonyms shared by recs engine
+export const STREAM_SYNONYMS: Record<string, string[]> = {
+  "data science": ["computer science", "ai/ml", "information technology"],
+  "ai/ml": ["computer science", "data science"],
+  "information technology": ["computer science"],
+  "electronics": ["electrical", "computer science"],
+  "aerospace": ["mechanical"],
+  "biotechnology": ["chemical"],
+  "finance": ["business", "general"],
+  "marketing": ["business", "general"],
+  "law": ["general"],
+  "design": ["general"],
+};
+
+// Undergrad bachelor's equivalents
+export const UNDERGRAD_EQUIVALENTS = new Set(["bs", "btech", "be", "b.tech", "b.e"]);
+export const isUndergradEquivalent = (a: string, b: string) =>
+  UNDERGRAD_EQUIVALENTS.has(a.toLowerCase()) && UNDERGRAD_EQUIVALENTS.has(b.toLowerCase());

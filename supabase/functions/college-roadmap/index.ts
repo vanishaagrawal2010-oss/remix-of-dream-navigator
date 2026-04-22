@@ -112,7 +112,9 @@ Be specific, realistic, and exhaustive. Tailor cutoffs and tips to the student's
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        // Faster + cheaper than 2.5-pro while still strong on structured JSON.
+        // Cuts roadmap generation from ~30-50s to ~10-15s.
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Generate the complete admission roadmap for: ${college}` },

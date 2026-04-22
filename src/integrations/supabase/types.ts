@@ -90,6 +90,9 @@ export type Database = {
           school: string | null
           sop_draft: string | null
           stream: string | null
+          stream_pref_1: string | null
+          stream_pref_2: string | null
+          stream_pref_3: string | null
           target_countries: string[] | null
           updated_at: string
           user_id: string
@@ -110,6 +113,9 @@ export type Database = {
           school?: string | null
           sop_draft?: string | null
           stream?: string | null
+          stream_pref_1?: string | null
+          stream_pref_2?: string | null
+          stream_pref_3?: string | null
           target_countries?: string[] | null
           updated_at?: string
           user_id: string
@@ -130,8 +136,35 @@ export type Database = {
           school?: string | null
           sop_draft?: string | null
           stream?: string | null
+          stream_pref_1?: string | null
+          stream_pref_2?: string | null
+          stream_pref_3?: string | null
           target_countries?: string[] | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      shortlists: {
+        Row: {
+          college_name: string
+          country: string | null
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          college_name: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          college_name?: string
+          country?: string | null
+          created_at?: string
+          id?: string
           user_id?: string
         }
         Relationships: []
