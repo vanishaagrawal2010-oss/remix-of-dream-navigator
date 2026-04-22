@@ -225,6 +225,29 @@ export const STUDY_PREFERENCES: StudyPreference[] = [
   buildPref("PhD", "General"),
 ];
 
+// ---- Extra preferences (medical, pharma, nursing, allied health, etc.) ----
+STUDY_PREFERENCES.push(
+  buildPref("BPharm", "Pharmacy"),
+  buildPref("BDS", "Dentistry"),
+  buildPref("BAMS", "Ayurveda"),
+  buildPref("BHMS", "Homoeopathy"),
+  buildPref("BSc Nursing", "Nursing"),
+  buildPref("BPT", "Physiotherapy"),
+  buildPref("BVSc", "Veterinary"),
+  buildPref("BSc", "Agriculture"),
+  buildPref("BSc", "Biotechnology"),
+  buildPref("BSc", "Physics"),
+  buildPref("BSc", "Chemistry"),
+  buildPref("BSc", "Mathematics"),
+  buildPref("BCom", "General"),
+  buildPref("BCom", "Honours"),
+  buildPref("CA", "Chartered Accountancy"),
+  buildPref("BHM", "Hotel Management"),
+  buildPref("BJMC", "Journalism"),
+  buildPref("BFA", "Fine Arts"),
+  buildPref("BArch", "Architecture"),
+);
+
 // Lookup helper
 export const getPreference = (value: string | null | undefined): StudyPreference | undefined =>
   value ? STUDY_PREFERENCES.find(p => p.value === value) : undefined;
