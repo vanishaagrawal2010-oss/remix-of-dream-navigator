@@ -359,7 +359,21 @@ Object.assign(STREAM_SYNONYMS, {
 // Extra degree equivalents (BS/BTech/BE) already exist; broaden BSc family.
 ["bsc", "b.sc", "bsc nursing", "bpharm", "b.pharm", "bds", "bams", "bhms", "bpt", "bvsc", "bcom", "b.com", "ca", "barch", "b.arch", "bjmc", "bfa", "bhm"].forEach(d => UNDERGRAD_EQUIVALENTS.add(d));
 
-// Undergrad bachelor's equivalents
+// Undergrad bachelor's equivalents (only engineering family interchangeable)
 export const UNDERGRAD_EQUIVALENTS = new Set(["bs", "btech", "be", "b.tech", "b.e"]);
-export const isUndergradEquivalent = (a: string, b: string) =>
-  UNDERGRAD_EQUIVALENTS.has(a.toLowerCase()) && UNDERGRAD_EQUIVALENTS.has(b.toLowerCase());
+
+// Equivalence groups — degrees in the same group are interchangeable for filtering.
+const DEGREE_EQ_GROUPS: string[][] = [
+  ["bs", "btech", "be", "b.tech", "b.e"],            // engineering family
+  ["bcom", "b.com"],
+  ["bsc", "b.sc"],
+  ["bpharm", "b.pharm"],
+  ["barch", "b.arch"],
+];
+
+export const isUndergradEquivalent = (a: string, b: string) => {
+  const al = a.toLowerCase();
+  const bl = b.toLowerCase();
+  if (al === bl) return true;
+  return DEGREE_EQ_GROUPS.some(g => g.includes(al) && g.includes(bl));
+};
