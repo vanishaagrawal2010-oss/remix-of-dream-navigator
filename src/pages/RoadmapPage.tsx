@@ -136,7 +136,7 @@ const RoadmapPage = () => {
       {loading && (
         <Card className="p-12 flex flex-col items-center gap-3 glass-card">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Building your personalised roadmap... (this may take ~20s)</p>
+          <p className="text-sm text-muted-foreground">Building your personalised roadmap... (~10–15s)</p>
         </Card>
       )}
 
