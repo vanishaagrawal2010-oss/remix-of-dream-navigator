@@ -14,9 +14,10 @@ import { STUDY_PREFERENCES } from "@/data/universities";
 const CLASS_OPTIONS = ["Class 9", "Class 10", "Class 11", "Class 12", "Gap Year", "1st Year UG", "2nd Year UG", "3rd Year UG", "Final Year UG", "Postgrad"];
 
 const AuthPage = () => {
-  const { user, loading: authLoading, signIn, signUp } = useAuth();
+  const { user, loading: authLoading, signIn, signUp, resetPassword } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const { toast } = useToast();
 
   // Auth fields
@@ -76,6 +77,22 @@ const AuthPage = () => {
     setLoading(false);
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      toast({ title: "Add your email first", description: "Enter the email address linked to your account.", variant: "destructive" });
+      return;
+    }
+
+    setResetting(true);
+    const { error } = await resetPassword(email.trim());
+    if (error) {
+      toast({ title: "Couldn't send reset link", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Reset link sent", description: "Check your inbox to set a new password." });
+    }
+    setResetting(false);
+  };
+
   const usedPrefs = new Set([pref1, pref2, pref3].filter(Boolean));
   const PrefSelect = ({ value, onChange, exclude, placeholder }: { value: string; onChange: (v: string) => void; exclude: string[]; placeholder: string }) => (
     <Select value={value} onValueChange={onChange}>
@@ -108,6 +125,18 @@ const AuthPage = () => {
               <Label className="label-mono text-xs">Account</Label>
               <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               <Input type="password" placeholder="Password (min 6 characters)" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+              {isLogin && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={resetting}
+                    className="text-xs text-muted-foreground transition-colors hover:text-primary disabled:opacity-60"
+                  >
+                    {resetting ? "Sending reset link…" : "Forgot password?"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {!isLogin && (
