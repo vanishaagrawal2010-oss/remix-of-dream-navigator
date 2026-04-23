@@ -16,6 +16,7 @@ const CLASS_OPTIONS = ["Class 9", "Class 10", "Class 11", "Class 12", "Gap Year"
 const AuthPage = () => {
   const { user, loading: authLoading, signIn, signUp, resetPassword } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [forgotMode, setForgotMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const { toast } = useToast();
@@ -88,10 +89,45 @@ const AuthPage = () => {
     if (error) {
       toast({ title: "Couldn't send reset link", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Reset link sent", description: "Check your inbox to set a new password." });
+      toast({ title: "Reset link sent", description: "Check your inbox (and spam) to set a new password." });
+      setForgotMode(false);
     }
     setResetting(false);
   };
+
+  // Dedicated forgot-password panel — cleaner, less buried than a tiny link
+  if (forgotMode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="glass-card w-full max-w-lg">
+          <CardHeader className="text-center space-y-3 pt-8">
+            <p className="label-mono text-muted-foreground">Maison Guide · Recovery</p>
+            <CardTitle className="font-heading text-3xl font-medium tracking-tight">Forgot your password?</CardTitle>
+            <CardDescription className="text-base">
+              Enter your email and we'll send you a secure link to set a new one.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="label-mono text-xs">Email address</Label>
+              <Input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required />
+            </div>
+            <Button onClick={handleForgotPassword} className="w-full" disabled={resetting || !email.trim()}>
+              {resetting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send reset link
+            </Button>
+            <button
+              type="button"
+              onClick={() => setForgotMode(false)}
+              className="w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              ← Back to sign in
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const usedPrefs = new Set([pref1, pref2, pref3].filter(Boolean));
   const PrefSelect = ({ value, onChange, exclude, placeholder }: { value: string; onChange: (v: string) => void; exclude: string[]; placeholder: string }) => (
@@ -129,11 +165,10 @@ const AuthPage = () => {
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={handleForgotPassword}
-                    disabled={resetting}
-                    className="text-xs text-muted-foreground transition-colors hover:text-primary disabled:opacity-60"
+                    onClick={() => setForgotMode(true)}
+                    className="text-xs font-medium text-primary/80 underline-offset-4 transition-colors hover:text-primary hover:underline"
                   >
-                    {resetting ? "Sending reset link…" : "Forgot password?"}
+                    Forgot password?
                   </button>
                 </div>
               )}
