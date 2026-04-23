@@ -41,6 +41,12 @@ type Roadmap = {
 
 const POPULAR = ["IIT Bombay", "IIT Delhi", "BITS Pilani", "NIT Trichy", "MIT", "Stanford", "Oxford", "NUS Singapore"];
 
+const normalizeExternalUrl = (url?: string | null) => {
+  if (!url) return null;
+  const trimmed = url.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+};
+
 const statusStyle = (s: ScheduleItem["status"]) => {
   switch (s) {
     case "upcoming": return { icon: Clock, cls: "bg-blue-100 text-blue-700 border-blue-200" };
@@ -82,7 +88,21 @@ const RoadmapPage = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setRoadmap(data.roadmap);
+      const cleaned = data.roadmap ? {
+        ...data.roadmap,
+        primary_exam: {
+          ...data.roadmap.primary_exam,
+          official_url: normalizeExternalUrl(data.roadmap.primary_exam?.official_url) || "",
+        },
+        alternative_exams: (data.roadmap.alternative_exams || []).map((item: any) => ({ ...item, official_url: normalizeExternalUrl(item.official_url) || "" })),
+        schedule: (data.roadmap.schedule || []).map((item: any) => ({ ...item, source_url: normalizeExternalUrl(item.source_url) || undefined })),
+        stages: (data.roadmap.stages || []).map((stage: any) => ({
+          ...stage,
+          resources: (stage.resources || []).map((resource: any) => ({ ...resource, url: normalizeExternalUrl(resource.url) || "" })).filter((resource: any) => resource.url),
+        })),
+        official_sources: (data.roadmap.official_sources || []).map((item: any) => ({ ...item, url: normalizeExternalUrl(item.url) || "" })).filter((item: any) => item.url),
+      } : null;
+      setRoadmap(cleaned);
     } catch (e: any) {
       toast({ title: "Failed", description: e.message || "Could not generate roadmap", variant: "destructive" });
     } finally {
