@@ -36,6 +36,8 @@ const ChatPage = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<{ id: string; title: string | null; updated_at: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -52,9 +54,18 @@ const ChatPage = () => {
       });
   }, [conversationId]);
 
+  // Only scroll when the USER sends a new message — pin the user's question
+  // near the top so the streaming assistant reply renders below it without
+  // pushing the viewport down.
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const last = messages[messages.length - 1];
+    if (last?.role === "user") {
+      // Defer to next paint so the new node is mounted
+      requestAnimationFrame(() => {
+        lastUserMsgRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [messages.length]);
 
   const createConversation = async () => {
     if (!user) return null;
@@ -238,10 +249,12 @@ const ChatPage = () => {
             </div>
           </div>
         ) : (
-          <ScrollArea className="flex-1 p-4 md:p-6">
+          <ScrollArea className="flex-1 px-4 md:px-6 pt-4 pb-2" ref={scrollAreaRef}>
             <div className="max-w-3xl mx-auto space-y-4">
-              {messages.map((msg, i) => (
-                <div key={i} className={cn("flex gap-3", msg.role === "user" ? "justify-end" : "justify-start")}>
+              {messages.map((msg, i) => {
+                const isLastUser = msg.role === "user" && i === messages.length - 1;
+                return (
+                <div key={i} ref={isLastUser ? lastUserMsgRef : undefined} className={cn("flex gap-3 scroll-mt-4", msg.role === "user" ? "justify-end" : "justify-start")}>
                   {msg.role === "assistant" && (
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-1">
                       <Bot className="h-4 w-4 text-primary" />
@@ -267,7 +280,8 @@ const ChatPage = () => {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
               {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
                 <div className="flex gap-3">
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
@@ -283,7 +297,7 @@ const ChatPage = () => {
           </ScrollArea>
         )}
 
-        <div className="border-t border-border p-4">
+        <div className="border-t border-border px-4 pt-3 pb-6 md:pb-8">
           <form onSubmit={e => { e.preventDefault(); sendMessage(); }} className="max-w-3xl mx-auto flex gap-2">
             <Input
               value={input}
