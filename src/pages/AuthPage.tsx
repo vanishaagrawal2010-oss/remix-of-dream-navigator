@@ -16,7 +16,6 @@ const CLASS_OPTIONS = ["Class 9", "Class 10", "Class 11", "Class 12", "Gap Year"
 const AuthPage = () => {
   const { user, loading: authLoading, signIn, signUp } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [forgotMode, setForgotMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -39,16 +38,6 @@ const AuthPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    if (forgotMode) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) toast({ title: "Couldn't send reset email", description: error.message, variant: "destructive" });
-      else toast({ title: "Check your inbox", description: "If an account exists, we've sent a password reset link." });
-      setLoading(false);
-      return;
-    }
 
     if (isLogin) {
       const { error } = await signIn(email, password);
@@ -105,14 +94,12 @@ const AuthPage = () => {
         <CardHeader className="text-center space-y-3 pt-10">
           <p className="label-mono text-muted-foreground">Maison Guide · Est. 2026</p>
           <CardTitle className="font-heading text-4xl font-medium tracking-tight">
-            {forgotMode ? "Reset your password." : isLogin ? "Welcome back." : "Begin your journey."}
+            {isLogin ? "Welcome back." : "Begin your journey."}
           </CardTitle>
           <CardDescription className="text-base">
-            {forgotMode
-              ? "Enter your email and we'll send you a secure reset link."
-              : isLogin
-                ? "Sign in to continue your application atelier."
-                : "Tell us a little about yourself — one form, one minute, fully personalised from the first click."}
+            {isLogin
+              ? "Sign in to continue your application atelier."
+              : "Tell us a little about yourself — one form, one minute, fully personalised from the first click."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -120,17 +107,10 @@ const AuthPage = () => {
             <div className="space-y-2">
               <Label className="label-mono text-xs">Account</Label>
               <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              {!forgotMode && (
-                <Input type="password" placeholder="Password (min 6 characters)" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
-              )}
-              {isLogin && !forgotMode && (
-                <button type="button" onClick={() => setForgotMode(true)} className="text-xs text-muted-foreground hover:text-primary transition-colors">
-                  Forgot password?
-                </button>
-              )}
+              <Input type="password" placeholder="Password (min 6 characters)" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
             </div>
 
-            {!isLogin && !forgotMode && (
+            {!isLogin && (
               <div className="space-y-4 pt-2 border-t border-border">
                 <Label className="label-mono text-xs block pt-3">About you</Label>
                 <Input placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
@@ -153,28 +133,18 @@ const AuthPage = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading || (!isLogin && !forgotMode && (!pref1 || usedPrefs.size < [pref1, pref2, pref3].filter(Boolean).length))}>
+            <Button type="submit" className="w-full" disabled={loading || (!isLogin && (!pref1 || usedPrefs.size < [pref1, pref2, pref3].filter(Boolean).length))}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" strokeWidth={1.25} />}
-              {forgotMode ? "Send reset link" : isLogin ? "Sign in" : "Begin your journey"}
+              {isLogin ? "Sign in" : "Begin your journey"}
             </Button>
           </form>
-          {forgotMode ? (
-            <button
-              type="button"
-              onClick={() => setForgotMode(false)}
-              className="mt-6 w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              ← Back to sign in
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="mt-6 w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              {isLogin ? "New here? Create your account →" : "Already have an account? Sign in →"}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setIsLogin(!isLogin)}
+            className="mt-6 w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+          >
+            {isLogin ? "New here? Create your account →" : "Already have an account? Sign in →"}
+          </button>
         </CardContent>
       </Card>
     </div>

@@ -103,15 +103,7 @@ Return ONLY valid JSON matching this exact schema (no markdown fences, no extra 
   ]
 }
 
-Be specific, realistic, and exhaustive. Tailor cutoffs and tips to the student's stream/degree if provided.
-
-CRITICAL — LINK QUALITY (this is the #1 reason this app gets bad reviews):
-- Every URL you emit must be a SPECIFIC, deep link to the EXACT resource you're naming. Never a generic homepage when a deep link exists.
-- If you reference a resource (e.g. "Class 12 Physics NCERT"), the URL must point to THAT exact textbook page, not the NCERT homepage and absolutely not a different subject/class. If you can't be ${"\u200B"}sure of the exact URL, OMIT the resource — do not guess.
-- Prefer canonical official sources: ncert.nic.in/textbook.php for NCERT (use the correct class+subject params), nta.ac.in / jeemain.nta.nic.in for JEE Main, jeeadv.ac.in for JEE Advanced, neet.nta.nic.in for NEET, collegeboard.org for SAT, ucas.com for UK, official .ac.in / .edu domains for individual colleges.
-- For NCERT specifically: use https://ncert.nic.in/textbook.php?lephy1=0-8 style links only when you are certain. Otherwise link to the NCERT subject landing page for that class (https://ncert.nic.in/textbook.php) and label it accordingly. NEVER link Class 12 PCM to Class 6 Hindi.
-- For each resource, double-check the URL pattern matches the named subject and class. If unsure, write "Official source: <name>" without a URL rather than a wrong URL.
-- All URLs MUST be reachable (no 404s, no placeholder example.com, no internal redirects). Strip tracking params.`;
+Be specific, realistic, and exhaustive. Tailor cutoffs and tips to the student's stream/degree if provided.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
