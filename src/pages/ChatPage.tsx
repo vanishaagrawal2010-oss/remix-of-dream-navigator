@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Plus, MessageSquare, Bot, User } from "lucide-react";
+import { Send, Loader2, Plus, MessageSquare, Bot, User, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -39,6 +39,29 @@ const ChatPage = () => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const [showJumpDown, setShowJumpDown] = useState(false);
+
+  // Get the actual scrollable viewport inside Radix ScrollArea
+  const getViewport = (): HTMLElement | null =>
+    scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
+
+  // Track whether the user is near the bottom; show the jump-down button otherwise
+  useEffect(() => {
+    const vp = getViewport();
+    if (!vp) return;
+    const onScroll = () => {
+      const distanceFromBottom = vp.scrollHeight - vp.scrollTop - vp.clientHeight;
+      setShowJumpDown(distanceFromBottom > 120);
+    };
+    onScroll();
+    vp.addEventListener("scroll", onScroll, { passive: true });
+    return () => vp.removeEventListener("scroll", onScroll);
+  }, [conversationId, messages.length]);
+
+  const jumpToBottom = () => {
+    const vp = getViewport();
+    if (vp) vp.scrollTo({ top: vp.scrollHeight, behavior: "smooth" });
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -249,7 +272,7 @@ const ChatPage = () => {
             </div>
           </div>
         ) : (
-          <ScrollArea className="flex-1 px-4 md:px-6 pt-4 pb-2" ref={scrollAreaRef}>
+          <ScrollArea className="flex-1 px-4 md:px-6 pt-4 pb-2 relative" ref={scrollAreaRef}>
             <div className="max-w-3xl mx-auto space-y-4">
               {messages.map((msg, i) => {
                 const isLastUser = msg.role === "user" && i === messages.length - 1;
@@ -297,7 +320,17 @@ const ChatPage = () => {
           </ScrollArea>
         )}
 
-        <div className="border-t border-border px-4 pt-3 pb-6 md:pb-8">
+        <div className="relative border-t border-border px-4 pt-2 pb-2 md:pb-3">
+          {showJumpDown && (
+            <button
+              type="button"
+              onClick={jumpToBottom}
+              aria-label="Jump to latest"
+              className="absolute -top-12 left-1/2 -translate-x-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 backdrop-blur shadow-md text-foreground hover:bg-secondary transition-colors"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </button>
+          )}
           <form onSubmit={e => { e.preventDefault(); sendMessage(); }} className="max-w-3xl mx-auto flex gap-2">
             <Input
               value={input}
