@@ -221,7 +221,7 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-57px)] md:h-screen">
+    <div className="flex h-[calc(100vh-96px)] -mt-6">
       {/* Conversation list */}
       <div className="hidden lg:flex w-72 flex-col border-r border-border bg-card">
         <div className="p-4 border-b border-border">
