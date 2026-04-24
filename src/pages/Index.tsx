@@ -1,10 +1,10 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
+import Loader from "@/components/Loader";
 
 const Index = () => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (loading) return <Loader fullscreen size="lg" label="Opening Maison" />;
   return <Navigate to={user ? "/dashboard" : "/auth"} replace />;
 };
 

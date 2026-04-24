@@ -1,8 +1,9 @@
 import { Link, useLocation, Outlet, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { LayoutDashboard, MessageSquare, User, LogOut, Loader2, Map, Sparkles } from "lucide-react";
+import { LayoutDashboard, MessageSquare, User, LogOut, Map, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import Loader from "@/components/Loader";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Atelier" },
@@ -30,7 +31,7 @@ const AppLayout = () => {
     }
   };
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" strokeWidth={1.25} /></div>;
+  if (loading) return <Loader fullscreen size="lg" label="Preparing your studio" />;
   if (!user) return <Navigate to="/auth" replace />;
 
   return (

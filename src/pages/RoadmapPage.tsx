@@ -10,6 +10,7 @@ import {
   Loader2, Map, Target, BookOpen, Calendar, Users, TrendingUp,
   Lightbulb, ExternalLink, CheckCircle2, Clock, AlertCircle, Sparkles,
 } from "lucide-react";
+import Loader from "@/components/Loader";
 
 type ScheduleItem = {
   event: string;
@@ -154,9 +155,9 @@ const RoadmapPage = () => {
       </Card>
 
       {loading && (
-        <Card className="p-12 flex flex-col items-center gap-3 glass-card">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Building your personalised roadmap... (~10–15s)</p>
+        <Card className="p-12 flex flex-col items-center gap-4 glass-card">
+          <Loader size="lg" label="Drafting your roadmap" />
+          <p className="text-xs text-muted-foreground">This usually takes 10–15 seconds</p>
         </Card>
       )}
 

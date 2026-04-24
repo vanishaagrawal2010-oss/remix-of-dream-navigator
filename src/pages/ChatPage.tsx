@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Plus, MessageSquare, Bot, User, ArrowDown } from "lucide-react";
+import { Send, Plus, MessageSquare, Bot, User, ArrowDown, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import Loader from "@/components/Loader";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -40,6 +42,7 @@ const ChatPage = () => {
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [showJumpDown, setShowJumpDown] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Get the actual scrollable viewport inside Radix ScrollArea
   const getViewport = (): HTMLElement | null =>
@@ -222,7 +225,7 @@ const ChatPage = () => {
 
   return (
     <div className="flex h-[calc(100vh-96px)] -mt-6">
-      {/* Conversation list */}
+      {/* Desktop conversation list */}
       <div className="hidden lg:flex w-72 flex-col border-r border-border bg-card">
         <div className="p-4 border-b border-border">
           <Button onClick={() => { setConversationId(null); setMessages([]); }} className="w-full gap-2" size="sm">
@@ -248,6 +251,49 @@ const ChatPage = () => {
 
       {/* Chat area */}
       <div className="flex-1 flex flex-col">
+        {/* Mobile history bar */}
+        <div className="lg:hidden flex items-center justify-between border-b border-border px-3 py-2">
+          <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-2 text-xs">
+                <History className="h-3.5 w-3.5" /> History
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 p-0">
+              <SheetHeader className="p-4 border-b border-border">
+                <SheetTitle className="text-left text-sm">Your conversations</SheetTitle>
+              </SheetHeader>
+              <div className="p-3">
+                <Button
+                  onClick={() => { setConversationId(null); setMessages([]); setHistoryOpen(false); }}
+                  className="w-full gap-2 mb-2"
+                  size="sm"
+                >
+                  <Plus className="h-4 w-4" /> New Chat
+                </Button>
+                <ScrollArea className="h-[calc(100vh-160px)]">
+                  {conversations.map(conv => (
+                    <button
+                      key={conv.id}
+                      onClick={() => { setConversationId(conv.id); setHistoryOpen(false); }}
+                      className={cn(
+                        "w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors mb-1",
+                        conv.id === conversationId ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"
+                      )}
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{conv.title || "New Chat"}</span>
+                    </button>
+                  ))}
+                </ScrollArea>
+              </div>
+            </SheetContent>
+          </Sheet>
+          <Button variant="ghost" size="sm" onClick={() => { setConversationId(null); setMessages([]); }} className="gap-2 text-xs">
+            <Plus className="h-3.5 w-3.5" /> New
+          </Button>
+        </div>
+
         {messages.length === 0 && !conversationId ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center max-w-md space-y-4">
@@ -306,12 +352,12 @@ const ChatPage = () => {
                 );
               })}
               {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
                     <Bot className="h-4 w-4 text-primary" />
                   </div>
-                  <Card className="glass-card p-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <Card className="glass-card px-4 py-3">
+                    <Loader size="sm" label="Composing" />
                   </Card>
                 </div>
               )}
