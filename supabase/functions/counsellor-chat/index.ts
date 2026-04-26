@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"; //updated
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { CAREER_GUIDE_KB } from "../_shared/career-guide-kb.ts";
 
