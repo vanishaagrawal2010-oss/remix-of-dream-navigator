@@ -18,12 +18,10 @@ type NewsItem = {
   date: string;
   uni: string;
   tag: string;
-  url: string;        // direct link to the article / official source
+  url: string;
   source: string;
 };
 
-// All URLs link to the actual source article / official page where the news was sourced.
-// If a college doesn't publish a scholarship page, we surface a fallback message in the UI.
 const NEWS_ITEMS: NewsItem[] = [
   { title: "MIT announces new AI research scholarship for 2026", date: "Apr 10, 2026", uni: "MIT", tag: "Scholarship", url: "https://news.mit.edu/topic/scholarships", source: "MIT News" },
   { title: "Stanford CS admissions deadline extended by 2 weeks", date: "Apr 8, 2026", uni: "Stanford University", tag: "Deadline", url: "https://news.stanford.edu/", source: "Stanford News" },
@@ -41,8 +39,6 @@ const NEWS_ITEMS: NewsItem[] = [
   { title: "Manipal MIT opens applications for BTech lateral entry", date: "Mar 25, 2026", uni: "Manipal Institute of Technology", tag: "Admissions", url: "https://manipal.edu/mit/admission.html", source: "Manipal Admissions" },
 ];
 
-// Curated, verified scholarship pages keyed by university name. If no entry exists,
-// the UI shows a clear "no official scholarship page found" message.
 const SCHOLARSHIP_PAGES: Record<string, string> = {
   "MIT": "https://sfs.mit.edu/undergraduate-students/types-of-aid/scholarships-grants/",
   "Stanford University": "https://financialaid.stanford.edu/undergrad/how/scholarships.html",
@@ -51,8 +47,6 @@ const SCHOLARSHIP_PAGES: Record<string, string> = {
   "Purdue University": "https://www.admissions.purdue.edu/finances/scholarships.php",
   "University of Illinois": "https://osfa.illinois.edu/types-of-aid/scholarships/",
   "Arizona State University": "https://students.asu.edu/scholarships",
-  "Oxford": "https://www.ox.ac.uk/admissions/undergraduate/fees-and-funding",
-  "Cambridge": "https://www.undergraduate.study.cam.ac.uk/finance/financial-support",
   "ETH Zurich": "https://ethz.ch/en/the-eth-zurich/education/scholarships.html",
   "NUS": "https://nus.edu.sg/oam/scholarships",
   "NTU Singapore": "https://www.ntu.edu.sg/admissions/undergraduate/scholarships",
@@ -80,7 +74,7 @@ const difficultyColor = (d: string) => {
   }
 };
 
-const SwipeCard = ({ uni, onSwipe }: { uni: University & { matchReason?: string }; onSwipe: (dir: "left" | "right") => void }) => {
+const SwipeCard = ({ uni, onSwipe }: { uni: University & { matchReason?: string; match: number }; onSwipe: (dir: "left" | "right") => void }) => {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
@@ -140,8 +134,8 @@ const SwipeCard = ({ uni, onSwipe }: { uni: University & { matchReason?: string 
               <p className="text-sm font-semibold">#{uni.ranking}</p>
             </div>
             <div className="rounded-lg bg-secondary p-3">
-              <p className="text-xs text-muted-foreground mb-1">Deadline</p>
-              <p className="text-sm font-semibold">{uni.deadline}</p>
+              <p className="text-xs text-muted-foreground mb-1">Hostel</p>
+              <p className="text-sm font-semibold">{uni.hostel || "Off-campus"}</p>
             </div>
           </div>
 
@@ -153,11 +147,10 @@ const SwipeCard = ({ uni, onSwipe }: { uni: University & { matchReason?: string 
             </a>
           ) : (
             <div className="mt-4 text-center text-[11px] text-muted-foreground rounded-lg bg-secondary/40 p-2">
-              No official scholarship page found for {uni.name}. Check the college website directly.
+              No official scholarship page found. Check the college website directly.
             </div>
           )}
 
-          {/* Swipe indicators */}
           <motion.div className="absolute top-6 right-6 bg-green-500 text-white px-4 py-2 rounded-xl font-heading font-bold text-lg rotate-12 border-2 border-green-600" style={{ opacity: likeOpacity }}>
             LIKE ✓
           </motion.div>
@@ -168,6 +161,159 @@ const SwipeCard = ({ uni, onSwipe }: { uni: University & { matchReason?: string 
       </Card>
     </motion.div>
   );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PERSONALISATION ENGINE
+// Every filter is explained below. "Hard filter" = university is completely
+// hidden. "Soft score" = university is shown but ranked lower/higher.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const computeRecommendations = (profile: any) => {
+  if (!profile) return [];
+
+  const countries: string[] = profile.target_countries || [];
+  const quiz = (profile.quiz_preferences || {}) as Record<string, string>;
+
+  // ── Grade tier: derive fresh from grades string, fall back to saved field ──
+  const tier: string = profile.grade_tier || deriveGradeTier(profile.grades) || "average";
+  const userTierRank: number = TIER_RANK[tier] ?? 2;
+
+  // ── Hostel: "critical" in quiz means ABSOLUTE hard filter ─────────────────
+  // A college with no hostel field OR hostel === "Limited" is EXCLUDED when
+  // the student says hostel is critical. No exceptions.
+  const hostelRequired = quiz.hostel_priority === "critical";
+
+  // ── Fees: "critical" in quiz means ABSOLUTE hard filter ───────────────────
+  const feesStrict = quiz.fees_priority === "critical";
+
+  // ── Build preference list from 3-preference system ────────────────────────
+  const prefs: { pref: StudyPreference; rank: number }[] = [];
+  [profile.stream_pref_1, profile.stream_pref_2, profile.stream_pref_3].forEach((v, i) => {
+    const p = getPreference(v);
+    if (p) prefs.push({ pref: p, rank: i + 1 });
+  });
+
+  // Backward compat: if no new prefs but old degree+stream exist
+  if (prefs.length === 0) {
+    const ldeg = profile.degree_type;
+    const lstream = profile.stream;
+    if (ldeg && lstream) {
+      prefs.push({ pref: { value: "legacy", label: `${ldeg} — ${lstream}`, degree: ldeg, stream: lstream }, rank: 1 });
+    }
+  }
+
+  if (prefs.length === 0) return [];
+
+  const matchesPref = (u: University, p: StudyPreference): boolean => {
+    const sameDeg = u.degree.toLowerCase() === p.degree.toLowerCase();
+    if (!sameDeg && !isUndergradEquivalent(u.degree, p.degree)) return false;
+    const us = u.stream.toLowerCase();
+    const up = u.program.toLowerCase();
+    const targets = new Set<string>([p.stream.toLowerCase(), ...(STREAM_SYNONYMS[p.stream.toLowerCase()] || [])]);
+    for (const t of targets) {
+      if (us.includes(t) || up.includes(t)) return true;
+    }
+    return false;
+  };
+
+  const findMatchingPref = (u: University) =>
+    prefs.find(({ pref }) => matchesPref(u, pref));
+
+  const results: (University & { matchReason: string; match: number; _prefRank: number })[] = [];
+
+  for (const u of ALL_UNIS) {
+    // ── HARD FILTER: country ─────────────────────────────────────────────────
+    if (countries.length > 0 && !countries.includes(u.country)) continue;
+
+    // ── HARD FILTER: stream / degree preference ──────────────────────────────
+    const matchedPref = findMatchingPref(u);
+    if (!matchedPref) continue;
+
+    // ── HARD FILTER: grade tier gate ─────────────────────────────────────────
+    // Rule: a student can only see colleges where their tier is AT MOST 1 step
+    // below the college's minimum required tier.
+    // Example: "low" tier (rank 1) student → can see "Easy" (min 1) and
+    // "Moderate" (min 2) colleges, but NOT "Hard" (min 3) or "Very Hard" (min 4).
+    // Example: "average" tier (rank 2) student → can see up to "Hard" (min 3),
+    // but NOT "Very Hard" (min 4) like IIT Bombay.
+    const minRequired = DIFFICULTY_MIN_TIER[u.difficulty];
+    const tierGap = minRequired - userTierRank; // positive = college harder than student
+    if (tierGap > 1) continue; // more than 1 step above → hard filtered out
+
+    // ── HARD FILTER: hostel ───────────────────────────────────────────────────
+    // If hostel is critical, the college MUST have at least "Average" hostel.
+    // "Limited" and missing hostel data both mean NO hostel → excluded.
+    if (hostelRequired) {
+      if (!u.hostel || u.hostel === "Limited") continue;
+    }
+
+    // ── HARD FILTER: fees ─────────────────────────────────────────────────────
+    if (feesStrict) {
+      const t = u.tuition.toLowerCase();
+      // Flag anything above ~₹3L/yr, $25k/yr, £20k/yr etc. as "expensive"
+      const isExpensive =
+        /\$[3-9]\d,|\$[1-9]\d{2},|£[2-9]\d,|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],\d{2},\d{3}|₹\d\d,\d{2},\d{3}/.test(t);
+      if (isExpensive) continue;
+    }
+
+    // ── SOFT SCORING ──────────────────────────────────────────────────────────
+    let score = 50; // baseline — NOT the hardcoded uni.match number
+
+    // 1. Preference rank bonus (biggest signal — this is their chosen field)
+    score += matchedPref.rank === 1 ? 20 : matchedPref.rank === 2 ? 10 : 4;
+
+    // 2. Grade fit — reward realistic matches, penalise reaches
+    //    tierGap: negative = student ABOVE college requirement (safety)
+    //             0 = perfect match
+    //             1 = slight reach (allowed but lower score)
+    if (tierGap < 0) score += 8;       // safety school — within student's reach
+    else if (tierGap === 0) score += 20; // perfect tier match — highest reward
+    else if (tierGap === 1) score += 4;  // slight reach — possible but penalised
+
+    // 3. Hostel quality bonus (only if they care at all)
+    if (quiz.hostel_priority === "critical" || quiz.hostel_priority === "important") {
+      if (u.hostel === "Excellent") score += 10;
+      else if (u.hostel === "Good") score += 6;
+      else if (u.hostel === "Average") score += 2;
+      // Limited already filtered if critical; gets 0 pts if just "important"
+    }
+
+    // 4. Campus type bonus
+    if (quiz.campus_type && u.campus === quiz.campus_type) score += 8;
+
+    // 5. City type bonus
+    if (quiz.city_type === "metro" && /mumbai|delhi|bangalore|chennai|new york|london|singapore|tokyo|sydney|toronto/i.test(u.city || "")) score += 6;
+    if (quiz.city_type === "small" && /pilani|kharagpur|warangal|roorkee|guwahati|manipal|vellore|patiala|tiruchirappalli/i.test(u.city || "")) score += 6;
+
+    // 6. Study intensity match
+    if (quiz.study_intensity === "intense" && u.difficulty === "Very Hard") score += 8;
+    if (quiz.study_intensity === "balanced" && (u.difficulty === "Hard" || u.difficulty === "Moderate")) score += 6;
+    if (quiz.study_intensity === "relaxed" && (u.difficulty === "Easy" || u.difficulty === "Moderate")) score += 7;
+
+    // 7. Career goal — research students benefit from high-ranking universities
+    if (quiz.career_goal === "research" && u.ranking <= 100) score += 6;
+
+    // 8. Fees preference soft signal (already hard-filtered if critical)
+    if (quiz.fees_priority === "critical" || quiz.fees_priority === "important") {
+      const t = u.tuition.toLowerCase();
+      const isCheap = /€\d|chf|₹[12],|₹\d\d,\d{3}/.test(t);
+      if (isCheap) score += 6;
+    }
+
+    const finalScore = Math.min(99, Math.max(35, Math.round(score)));
+
+    const reason = matchedPref.rank === 1
+      ? `Pref #1 · ${matchedPref.pref.label}`
+      : matchedPref.rank === 2
+        ? `Pref #2 · ${matchedPref.pref.label}`
+        : `Pref #3 · ${matchedPref.pref.label}`;
+
+    results.push({ ...u, match: finalScore, matchReason: reason, _prefRank: matchedPref.rank });
+  }
+
+  // Sort: preference rank first, then personalised score descending
+  return results.sort((a, b) => a._prefRank - b._prefRank || b.match - a.match);
 };
 
 const DashboardPage = () => {
@@ -181,7 +327,11 @@ const DashboardPage = () => {
     if (!user) { setLiked([]); return; }
     let active = true;
     const load = async () => {
-      const { data } = await supabase.from("shortlists").select("college_name, country").eq("user_id", user.id).order("created_at", { ascending: false });
+      const { data } = await supabase
+        .from("shortlists")
+        .select("college_name, country")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
       if (active && data) setLiked(data.map(d => ({ name: d.college_name, country: d.country || undefined })));
     };
     load();
@@ -192,117 +342,8 @@ const DashboardPage = () => {
     return () => { active = false; supabase.removeChannel(channel); };
   }, [user]);
 
-  const recommendations = useMemo(() => {
-    if (!profile) return [];
-    const countries = profile.target_countries || [];
-    const quiz = ((profile as any).quiz_preferences || {}) as Record<string, string>;
-    const tier = (profile as any).grade_tier || deriveGradeTier(profile.grades);
-    const userTierRank = TIER_RANK[tier] ?? 2;
-
-    // === The 3 preferences are now the SOLE stream/degree filter ===
-    const prefs: { pref: StudyPreference; rank: number }[] = [];
-    [
-      (profile as any).stream_pref_1,
-      (profile as any).stream_pref_2,
-      (profile as any).stream_pref_3,
-    ].forEach((v, i) => {
-      const p = getPreference(v);
-      if (p) prefs.push({ pref: p, rank: i + 1 });
-    });
-
-    // Backward compatibility: if no prefs but legacy degree+stream exist, use them as pref 1
-    if (prefs.length === 0) {
-      const ldeg = (profile as any).degree_type;
-      const lstream = (profile as any).stream;
-      if (ldeg && lstream) {
-        prefs.push({ pref: { value: "legacy", label: `${ldeg} — ${lstream}`, degree: ldeg, stream: lstream }, rank: 1 });
-      }
-    }
-
-    if (prefs.length === 0) return [];
-
-    const matchesPref = (u: University, p: StudyPreference) => {
-      // Degree must match (or undergrad equivalent)
-      const sameDeg = u.degree.toLowerCase() === p.degree.toLowerCase();
-      if (!sameDeg && !isUndergradEquivalent(u.degree, p.degree)) return false;
-      // Stream match (incl. synonyms)
-      const us = u.stream.toLowerCase();
-      const up = u.program.toLowerCase();
-      const targets = new Set<string>([p.stream.toLowerCase(), ...(STREAM_SYNONYMS[p.stream.toLowerCase()] || [])]);
-      for (const t of targets) {
-        if (us.includes(t) || up.includes(t)) return true;
-      }
-      return false;
-    };
-
-    const findMatchingPref = (u: University) => prefs.find(({ pref }) => matchesPref(u, pref));
-
-    // Quiz hard filters (unchanged behaviour)
-    const hostelCritical = quiz.hostel_priority === "critical";
-    const feesCritical = quiz.fees_priority === "critical";
-
-    const filtered: (University & { matchReason: string; _prefRank: number })[] = [];
-    for (const u of ALL_UNIS) {
-      if (countries.length > 0 && !countries.includes(u.country)) continue;
-      const matchedPref = findMatchingPref(u);
-      if (!matchedPref) continue;
-
-      if (hostelCritical && (u.hostel === "Limited" || !u.hostel)) continue;
-      if (feesCritical) {
-        const t = u.tuition.toLowerCase();
-        const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d|₹[5-9],\d{2},\d{3}|₹\d\d,\d{2},\d{3}/.test(t);
-        if (isExpensive) continue;
-      }
-
-      // Tier gate: hide unreachable
-      const gap = DIFFICULTY_MIN_TIER[u.difficulty] - userTierRank;
-      if (userTierRank <= 1) {
-        if (DIFFICULTY_MIN_TIER[u.difficulty] >= 4) continue;
-      } else if (gap > 1) {
-        continue;
-      }
-
-      const reason = matchedPref.rank === 1
-        ? `Pref #1 · ${matchedPref.pref.label}`
-        : matchedPref.rank === 2
-          ? `Pref #2 · ${matchedPref.pref.label}`
-          : `Pref #3 · ${matchedPref.pref.label}`;
-      filtered.push({ ...u, matchReason: reason, _prefRank: matchedPref.rank });
-    }
-
-    // Score
-    const scored = filtered.map(u => {
-      let score = u.match;
-      // Boost by preference rank (1st pref wins big)
-      score += u._prefRank === 1 ? 14 : u._prefRank === 2 ? 7 : 2;
-      const tierGap = userTierRank - DIFFICULTY_MIN_TIER[u.difficulty];
-      if (tierGap === 0) score += 10;
-      else if (tierGap === 1) score += 5;
-      else if (tierGap < 0) score -= Math.abs(tierGap) * 15;
-
-      if (quiz.campus_type && u.campus === quiz.campus_type) score += 8;
-      if (quiz.hostel_priority === "critical") {
-        if (u.hostel === "Excellent") score += 10;
-        else if (u.hostel === "Limited") score -= 12;
-      }
-      if (quiz.city_type === "metro" && /mumbai|delhi|bangalore|chennai|new york|london|singapore|tokyo|sydney|toronto|hong kong/i.test(u.city || "")) score += 6;
-      if (quiz.city_type === "small" && /pilani|kharagpur|warangal|roorkee|guwahati|manipal|vellore|patiala|tiruchirappalli/i.test(u.city || "")) score += 6;
-      if (quiz.study_intensity === "intense" && u.difficulty === "Very Hard") score += 8;
-      if (quiz.study_intensity === "relaxed" && (u.difficulty === "Easy" || u.difficulty === "Moderate")) score += 7;
-      if (quiz.career_goal === "research" && u.ranking <= 100) score += 6;
-      if (quiz.fees_priority === "critical") {
-        const t = u.tuition.toLowerCase();
-        const isExpensive = /\$[3-9]\d|\$[1-9]\d{2}|£[2-9]\d|cad \$[4-9]\d|aud \$[4-9]\d|sgd \$[3-9]\d/.test(t);
-        if (isExpensive) score -= 18;
-        const isCheap = /€\d|chf|₹[12],|₹\d\d,\d{3}/.test(t);
-        if (isCheap) score += 8;
-      }
-      return { ...u, match: Math.min(99, Math.max(35, Math.round(score))) };
-    });
-
-    // Sort: preference rank first, then score
-    return scored.sort((a, b) => a._prefRank - b._prefRank || b.match - a.match);
-  }, [profile]);
+  // Run the personalisation engine whenever profile changes
+  const recommendations = useMemo(() => computeRecommendations(profile), [profile]);
 
   const unswiped = recommendations.filter(u => !swiped.has(u.name));
 
@@ -315,9 +356,11 @@ const DashboardPage = () => {
   const handleSwipe = async (uni: University, dir: "left" | "right") => {
     setSwiped(prev => new Set([...prev, uni.name]));
     if (dir === "right" && user) {
-      // Optimistic
       setLiked(prev => prev.find(l => l.name === uni.name) ? prev : [{ name: uni.name, country: uni.country }, ...prev]);
-      await supabase.from("shortlists").upsert({ user_id: user.id, college_name: uni.name, country: uni.country }, { onConflict: "user_id,college_name" });
+      await supabase.from("shortlists").upsert(
+        { user_id: user.id, college_name: uni.name, country: uni.country },
+        { onConflict: "user_id,college_name" }
+      );
     }
   };
 
@@ -330,6 +373,7 @@ const DashboardPage = () => {
   const quizPrefs = ((profile as any)?.quiz_preferences || {}) as Record<string, string>;
   const quizCompleted = Object.values(quizPrefs).filter(Boolean).length >= 5;
   const hasAnyPref = !!((profile as any)?.stream_pref_1) || (!!(profile as any)?.degree_type && !!(profile as any)?.stream);
+  const currentTier = (profile as any)?.grade_tier || deriveGradeTier(profile?.grades);
 
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
@@ -441,9 +485,9 @@ const DashboardPage = () => {
                     {(profile as any)?.stream_pref_2 && <p>· 2nd: <strong>{getPreference((profile as any).stream_pref_2)?.label}</strong></p>}
                     {(profile as any)?.stream_pref_3 && <p>· 3rd: <strong>{getPreference((profile as any).stream_pref_3)?.label}</strong></p>}
                     <p>· Countries: <strong>{(profile?.target_countries || []).join(", ") || "Any"}</strong></p>
-                    <p>· Grade tier: <strong>{(profile as any).grade_tier || deriveGradeTier(profile?.grades)}</strong></p>
-                    {quizPrefs.hostel_priority === "critical" && <p>· Hostel: <strong>required (in-house)</strong></p>}
-                    {quizPrefs.fees_priority === "critical" && <p>· Fees: <strong>budget-strict</strong></p>}
+                    <p>· Grade tier: <strong>{currentTier}</strong></p>
+                    {quizPrefs.hostel_priority === "critical" && <p>· Hostel: <strong>required (hard filter)</strong></p>}
+                    {quizPrefs.fees_priority === "critical" && <p>· Fees: <strong>budget-strict (hard filter)</strong></p>}
                   </div>
                 )}
                 <Link to="/profile">
@@ -568,7 +612,10 @@ const DashboardPage = () => {
                       <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" />{uni.acceptanceRate}</span>
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{uni.deadline}</span>
                     </div>
-                    <Badge variant="outline" className={`text-[10px] mt-2 ${difficultyColor(uni.difficulty)}`}>{uni.difficulty}</Badge>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="outline" className={`text-[10px] ${difficultyColor(uni.difficulty)}`}>{uni.difficulty}</Badge>
+                      {uni.hostel && <Badge variant="outline" className="text-[10px]">Hostel: {uni.hostel}</Badge>}
+                    </div>
                   </CardContent>
                 </Card>
               );

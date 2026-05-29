@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
+import { deriveGradeTier } from "@/data/universities";
 import Loader from "@/components/Loader";
 
 type CollegeData = {
@@ -129,20 +130,35 @@ const ComparisonPage = () => {
     setVerdictVisible(false);
 
     try {
+      // Build a rich profile snapshot for the AI so it gives a personalised verdict
+      const quizPrefs = ((profile as any)?.quiz_preferences || {}) as Record<string, string>;
+      const gradeTier = (profile as any)?.grade_tier || deriveGradeTier(profile?.grades);
+const profilePayload = profile ? {
+  name: profile.full_name,
+  grades: profile.grades,
+  grade_tier: gradeTier,
+  // NOTE: intentionally NOT sending stream/degree preferences —
+  // the user typed their own stream in the search box, so the
+  // verdict should be based on that, not their profile course.
+  budget: profile.budget,
+  interests: profile.interests,
+  target_countries: profile.target_countries,
+  extracurriculars: profile.extracurriculars,
+  // Lifestyle preferences from quiz (still relevant regardless of stream)
+  hostel_priority: quizPrefs.hostel_priority,
+  fees_priority: quizPrefs.fees_priority,
+  city_type: quizPrefs.city_type,
+  campus_type: quizPrefs.campus_type,
+  career_goal: quizPrefs.career_goal,
+  study_intensity: quizPrefs.study_intensity,
+  work_style: quizPrefs.work_style,
+} : null;
       const { data, error } = await supabase.functions.invoke("college-comparison", {
         body: {
           collegeA: collegeA.trim(),
           collegeB: collegeB.trim(),
           stream: stream.trim(),
-          profile: profile ? {
-            name: profile.full_name,
-            stream: (profile as any).stream,
-            degree_type: (profile as any).degree_type,
-            grades: profile.grades,
-            budget: profile.budget,
-            interests: profile.interests,
-            target_countries: profile.target_countries,
-          } : null,
+          profile: profilePayload,
         },
       });
 
@@ -263,7 +279,6 @@ const ComparisonPage = () => {
         {comparison && (
           <div style={{ animation: "slideUp 0.4s cubic-bezier(0.4,0,0.2,1) forwards" }}>
 
-            {/* Back button */}
             <button
               onClick={() => {
                 setComparison(null);
@@ -289,7 +304,6 @@ const ComparisonPage = () => {
               ← Compare Again
             </button>
 
-            {/* Stream label */}
             <p style={{
               fontSize: 11,
               letterSpacing: "0.25em",
@@ -302,7 +316,6 @@ const ComparisonPage = () => {
               {stream}
             </p>
 
-            {/* College headers */}
             <div style={{
               display: "grid",
               gridTemplateColumns: "180px 1fr 1fr",
@@ -336,7 +349,6 @@ const ComparisonPage = () => {
 
             <div style={{ height: 1, background: "rgba(27,51,34,0.15)", marginBottom: 0 }} />
 
-            {/* Data rows */}
             {FACTORS.map(({ key, label }, i) => (
               <div
                 key={key}

@@ -384,3 +384,128 @@ export const STREAM_SYNONYMS: Record<string, string[]> = {
 export const UNDERGRAD_EQUIVALENTS = new Set(["bs", "btech", "be", "b.tech", "b.e"]);
 export const isUndergradEquivalent = (a: string, b: string) =>
   UNDERGRAD_EQUIVALENTS.has(a.toLowerCase()) && UNDERGRAD_EQUIVALENTS.has(b.toLowerCase());
+// =====================================================================
+// PERSONALIZATION ENGINE
+// computeMatch() — replaces the hardcoded `match` number with a live
+// score based on the user's actual profile. Returns 0 if hard-filtered.
+// =====================================================================
+
+export type PersonalisedProfile = {
+  grade_tier?: string | null;
+  stream_pref_1?: string | null;
+  stream_pref_2?: string | null;
+  stream_pref_3?: string | null;
+  target_countries?: string[] | null;
+  budget?: string | null;
+  // Aptitude / lifestyle preferences from the aptitude test
+  hostel_required?: boolean | null;   // true = only show colleges WITH hostel
+  campus_pref?: string | null;        // "Sprawling" | "Modern" | "Compact" | "Urban"
+  stream?: string | null;             // legacy field (mirrored from pref_1)
+  degree_type?: string | null;        // legacy field
+};
+
+/**
+ * Parse a budget string like "₹5,00,000/yr" or "$30,000/year" into a
+ * number in USD-equivalent thousands (rough, for ordering only).
+ */
+const parseBudget = (b: string | null | undefined): number => {
+  if (!b) return Infinity;
+  const clean = b.replace(/[^\d.]/g, "");
+  const n = parseFloat(clean);
+  if (isNaN(n)) return Infinity;
+  // If it looks like INR (very large number), convert roughly
+  if (n > 500000) return n / 83000;   // ₹ → $k
+  if (n > 5000) return n / 1000;      // raw $ → $k
+  return n;                           // already in $k / lakh notation
+};
+
+/**
+ * Returns a personalised match score 0–100, or -1 meaning HARD FILTERED
+ * (should be completely hidden from the user).
+ */
+export const computeMatch = (
+  uni: University,
+  profile: PersonalisedProfile | null | undefined
+): number => {
+  // ── No profile → return raw match unchanged ───────────────────────
+  if (!profile) return uni.match;
+
+  const userTierNum = TIER_RANK[profile.grade_tier ?? "average"] ?? 2;
+  const minTier     = DIFFICULTY_MIN_TIER[uni.difficulty];
+
+  // ── HARD FILTER 1: Grade gating ───────────────────────────────────
+  // If user's tier is more than 1 step below requirement → HIDE
+  if (userTierNum < minTier - 1) return -1;
+
+  // ── HARD FILTER 2: Hostel requirement ─────────────────────────────
+  if (profile.hostel_required) {
+    if (!uni.hostel || uni.hostel === "Limited") return -1;
+  }
+
+  // ── HARD FILTER 3: Country preference ─────────────────────────────
+  const countries = profile.target_countries;
+  if (countries && countries.length > 0 && !countries.includes(uni.country)) return -1;
+
+  // ── SCORING: start from 50, adjust up/down ────────────────────────
+  let score = 50;
+
+  // Grade fit (±25 pts) — penalise reach schools, reward realistic ones
+  const tierDiff = userTierNum - minTier;  // negative = reach, positive = safety
+  if (tierDiff >= 1)        score += 10;  // safety school — comfortable
+  else if (tierDiff === 0)  score += 25;  // perfect match
+  else if (tierDiff === -1) score += 5;   // slight reach — still possible
+  // tierDiff < -1 already filtered above
+
+  // Stream / degree match (±20 pts)
+  const uniStream  = uni.stream.toLowerCase();
+  const uniDegree  = uni.degree.toLowerCase();
+  const prefs      = [profile.stream_pref_1, profile.stream_pref_2, profile.stream_pref_3]
+                       .filter(Boolean)
+                       .map(p => getPreference(p));
+
+  let streamScore = 0;
+  for (let i = 0; i < prefs.length; i++) {
+    const pref = prefs[i];
+    if (!pref) continue;
+    const prefStream = pref.stream.toLowerCase();
+    const prefDegree = pref.degree.toLowerCase();
+
+    const degreeMatch = prefDegree === uniDegree ||
+      isUndergradEquivalent(prefDegree, uniDegree) ||
+      uniDegree === "ba" || uniDegree === "bs";
+
+    const streamMatch = prefStream === uniStream ||
+      (STREAM_SYNONYMS[prefStream]?.includes(uniStream)) ||
+      (STREAM_SYNONYMS[uniStream]?.includes(prefStream)) ||
+      prefStream === "general" || uniStream === "general";
+
+    if (streamMatch && degreeMatch) {
+      streamScore = i === 0 ? 20 : i === 1 ? 12 : 6;
+      break;
+    } else if (streamMatch || degreeMatch) {
+      streamScore = Math.max(streamScore, i === 0 ? 8 : 4);
+    }
+  }
+  score += streamScore;
+
+  // Budget fit (±10 pts)
+  const userBudget = parseBudget(profile.budget);
+  const uniTuition = parseBudget(uni.tuition);
+  if (userBudget !== Infinity) {
+    if (uniTuition <= userBudget * 0.7)       score += 10;  // well within budget
+    else if (uniTuition <= userBudget)         score += 5;   // within budget
+    else if (uniTuition <= userBudget * 1.2)   score += 0;   // slight stretch
+    else                                        score -= 8;   // over budget
+  }
+
+  // Hostel quality bonus (up to +5)
+  if (profile.hostel_required) {
+    if (uni.hostel === "Excellent") score += 5;
+    else if (uni.hostel === "Good") score += 2;
+  }
+
+  // Campus preference bonus (+3)
+  if (profile.campus_pref && uni.campus === profile.campus_pref) score += 3;
+
+  return Math.min(100, Math.max(0, Math.round(score)));
+};

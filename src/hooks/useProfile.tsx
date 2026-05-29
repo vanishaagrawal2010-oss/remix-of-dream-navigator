@@ -12,18 +12,35 @@ export const useProfile = () => {
 
   const fetchProfile = async () => {
     if (!user) { setProfile(null); setLoading(false); return; }
-    const { data } = await supabase
+
+    // maybeSingle() returns null (not an error) when 0 rows exist
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", user.id)
-      .single();
-    setProfile(data);
+      .maybeSingle();
+
+    if (!error && data) {
+      // Row exists — use it
+      setProfile(data);
+    } else if (!data && !error) {
+      // Row missing — auto-create a blank one so saves always work
+      const { data: created, error: insertErr } = await supabase
+        .from("profiles")
+        .insert({ user_id: user.id })
+        .select("*")
+        .maybeSingle();
+      if (!insertErr && created) setProfile(created);
+    }
+    // If there was a real error, leave profile as null — UI will show CTA
+
     setLoading(false);
   };
 
   useEffect(() => {
     fetchProfile();
     if (!user) return;
+
     // Realtime: any change to this user's profile row instantly updates everywhere
     const channel = supabase
       .channel(`profile-${user.id}`)
@@ -35,12 +52,13 @@ export const useProfile = () => {
         }
       )
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user?.id]); // depend on user.id not the whole object to avoid infinite loops
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return;
-    // Optimistic update so UI reacts immediately even before refetch / realtime
+    // Optimistic update so UI reacts immediately
     setProfile((prev) => (prev ? { ...prev, ...updates } as Profile : prev));
     const { error } = await supabase
       .from("profiles")
@@ -50,7 +68,7 @@ export const useProfile = () => {
     return { error };
   };
 
-  const isProfileComplete = profile?.full_name && profile?.school && profile?.grades;
+  const isProfileComplete = !!(profile?.full_name && profile?.school && profile?.grades);
 
   return { profile, loading, updateProfile, refetch: fetchProfile, isProfileComplete };
 };
