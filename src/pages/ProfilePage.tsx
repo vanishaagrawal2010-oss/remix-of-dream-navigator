@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GraduationCap, Loader2, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { STUDY_PREFERENCES } from "@/data/universities";
+import { STUDY_PREFERENCES, deriveGradeTier } from "@/data/universities";
 
 const COUNTRY_OPTIONS = ["USA", "UK", "Canada", "Australia", "Germany", "Netherlands", "Singapore", "Japan", "France", "Switzerland", "India"];
 const CLASS_OPTIONS = ["Class 9", "Class 10", "Class 11", "Class 12", "Gap Year", "1st Year UG", "2nd Year UG", "3rd Year UG", "Final Year UG", "Postgrad"];
@@ -81,6 +81,7 @@ const ProfilePage = () => {
       ...form,
       degree_type: p1?.degree || null,
       stream: p1?.stream || null,
+      grade_tier: deriveGradeTier(form.grades),
     };
     const { error } = await updateProfile(payload) || {};
     if (error) {

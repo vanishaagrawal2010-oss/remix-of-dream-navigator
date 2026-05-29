@@ -8,11 +8,11 @@ import Loader from "@/components/Loader";
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Atelier" },
   { to: "/roadmap", icon: Map, label: "Roadmap" },
+  { to: "/comparison", icon: null, label: "Compare" },
   { to: "/quiz", icon: Sparkles, label: "Aptitude" },
   { to: "/chat", icon: MessageSquare, label: "Counsel" },
   { to: "/profile", icon: User, label: "You" },
 ];
-
 const AppLayout = () => {
   const { user, loading, signOut } = useAuth();
   const location = useLocation();
@@ -72,18 +72,26 @@ const AppLayout = () => {
 
           <div className="flex items-center gap-1">
             <div className="md:hidden flex gap-0.5">
-              {navItems.map(item => (
-                <Link key={item.to} to={item.to}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn("h-8 w-8 rounded-full", location.pathname === item.to && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
-                  >
-                    <item.icon className="h-3.5 w-3.5" strokeWidth={1.25} />
-                  </Button>
-                </Link>
-              ))}
-            </div>
+  {navItems.map(item => (
+    <Link key={item.to} to={item.to}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn("h-8 w-8 rounded-full", location.pathname === item.to && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground")}
+      >
+        {item.icon ? (
+          <item.icon className="h-3.5 w-3.5" strokeWidth={1.25} />
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="3" y1="1" x2="3" y2="13" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/>
+            <line x1="11" y1="1" x2="11" y2="13" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round"/>
+            <line x1="3" y1="7" x2="11" y2="7" stroke="currentColor" strokeWidth="0.75" strokeLinecap="round"/>
+          </svg>
+        )}
+      </Button>
+    </Link>
+  ))}
+</div>
             <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive">
               <LogOut className="h-3.5 w-3.5" strokeWidth={1.25} />
             </Button>
@@ -110,6 +118,7 @@ const AppLayout = () => {
             <ul className="space-y-2 font-heading text-lg">
               <li><a href="/dashboard" onClick={goTo("/dashboard")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">Atelier</a></li>
               <li><a href="/roadmap" onClick={goTo("/roadmap")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">Roadmap</a></li>
+              <li><a href="/comparison" onClick={goTo("/comparison")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">Compare</a></li>
               <li><a href="/quiz" onClick={goTo("/quiz")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">Aptitude</a></li>
               <li><a href="/chat" onClick={goTo("/chat")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">Counsel</a></li>
               <li><a href="/profile" onClick={goTo("/profile")} className="opacity-90 hover:opacity-100 transition-opacity cursor-pointer">You</a></li>

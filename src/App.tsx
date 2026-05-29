@@ -10,6 +10,7 @@ import ProfilePage from "./pages/ProfilePage";
 import DashboardPage from "./pages/DashboardPage";
 import ChatPage from "./pages/ChatPage";
 import RoadmapPage from "./pages/RoadmapPage";
+import ComparisonPage from "./pages/ComparisonPage"
 import QuizPage from "./pages/QuizPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AppLayout from "./components/AppLayout";
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/roadmap" element={<RoadmapPage />} />
+              <Route path="/comparison" element={<ComparisonPage />} />
               <Route path="/quiz" element={<QuizPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
