@@ -1,6 +1,6 @@
 import { Link, useLocation, Outlet, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { LayoutDashboard, MessageSquare, User, LogOut, Map, Sparkles } from "lucide-react";
+import { LayoutDashboard, MessageSquare, User, LogOut, Map, Sparkles, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Loader from "@/components/Loader";
@@ -8,7 +8,7 @@ import Loader from "@/components/Loader";
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Atelier" },
   { to: "/roadmap", icon: Map, label: "Roadmap" },
-  { to: "/comparison", icon: null, label: "Compare" },
+  { to: "/comparison", icon: Scale, label: "Compare" },
   { to: "/quiz", icon: Sparkles, label: "Aptitude" },
   { to: "/chat", icon: MessageSquare, label: "Counsel" },
   { to: "/profile", icon: User, label: "You" },
