@@ -130,29 +130,27 @@ const ComparisonPage = () => {
     setVerdictVisible(false);
 
     try {
-      // Build a rich profile snapshot for the AI so it gives a personalised verdict
       const quizPrefs = ((profile as any)?.quiz_preferences || {}) as Record<string, string>;
       const gradeTier = (profile as any)?.grade_tier || deriveGradeTier(profile?.grades);
-const profilePayload = profile ? {
-  name: profile.full_name,
-  grades: profile.grades,
-  grade_tier: gradeTier,
-  // NOTE: intentionally NOT sending stream/degree preferences —
-  // the user typed their own stream in the search box, so the
-  // verdict should be based on that, not their profile course.
-  budget: profile.budget,
-  interests: profile.interests,
-  target_countries: profile.target_countries,
-  extracurriculars: profile.extracurriculars,
-  // Lifestyle preferences from quiz (still relevant regardless of stream)
-  hostel_priority: quizPrefs.hostel_priority,
-  fees_priority: quizPrefs.fees_priority,
-  city_type: quizPrefs.city_type,
-  campus_type: quizPrefs.campus_type,
-  career_goal: quizPrefs.career_goal,
-  study_intensity: quizPrefs.study_intensity,
-  work_style: quizPrefs.work_style,
-} : null;
+      const profilePayload = profile
+        ? {
+            name: profile.full_name,
+            grades: profile.grades,
+            grade_tier: gradeTier,
+            budget: profile.budget,
+            interests: profile.interests,
+            target_countries: profile.target_countries,
+            extracurriculars: profile.extracurriculars,
+            hostel_priority: quizPrefs.hostel_priority,
+            fees_priority: quizPrefs.fees_priority,
+            city_type: quizPrefs.city_type,
+            campus_type: quizPrefs.campus_type,
+            career_goal: quizPrefs.career_goal,
+            study_intensity: quizPrefs.study_intensity,
+            work_style: quizPrefs.work_style,
+          }
+        : null;
+
       const { data, error } = await supabase.functions.invoke("college-comparison", {
         body: {
           collegeA: collegeA.trim(),
@@ -180,55 +178,20 @@ const profilePayload = profile ? {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#FDFBF7",
-        fontFamily: "'Inter', 'Plus Jakarta Sans', sans-serif",
-        padding: "48px 24px",
-      }}
-    >
+    <div className="comparison-page">
       {loading && <Loader fullscreen size="lg" />}
 
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      <div className="comparison-container">
 
         {!comparison && (
           <>
-            <div style={{ textAlign: "center", marginBottom: 56 }}>
-              <p style={{
-                fontFamily: "'Cormorant Garamond', 'Georgia', serif",
-                fontSize: 11,
-                letterSpacing: "0.28em",
-                color: "#1B3322",
-                opacity: 0.5,
-                textTransform: "uppercase",
-                marginBottom: 16,
-              }}>
-                The Atelier · College Comparison
-              </p>
-              <h1 style={{
-                fontFamily: "'Cormorant Garamond', 'Lora', 'Georgia', serif",
-                fontSize: "clamp(36px, 6vw, 64px)",
-                fontWeight: 400,
-                color: "#1B3322",
-                lineHeight: 1.1,
-                margin: 0,
-              }}>
-                Map Your Paths.
-              </h1>
-              <p style={{
-                fontFamily: "'Cormorant Garamond', 'Georgia', serif",
-                fontStyle: "italic",
-                fontSize: 15,
-                color: "#1B3322",
-                opacity: 0.45,
-                marginTop: 16,
-              }}>
-                Two colleges. One stream. One truth.
-              </p>
+            <div className="comparison-hero">
+              <p className="comparison-eyebrow">The Atelier · College Comparison</p>
+              <h1 className="comparison-title">Map Your Paths.</h1>
+              <p className="comparison-subtitle">Two colleges. One stream. One truth.</p>
             </div>
 
-            <form onSubmit={handleCompare} style={{ maxWidth: 480, margin: "0 auto" }}>
+            <form onSubmit={handleCompare} className="comparison-form">
               <FloatingInput
                 label="Stream / Course"
                 value={stream}
@@ -251,25 +214,7 @@ const profilePayload = profile ? {
                 disabled={loading}
               />
 
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  padding: "16px 0",
-                  background: "#1B3322",
-                  color: "#FDFBF7",
-                  border: "none",
-                  fontSize: 11,
-                  letterSpacing: "0.28em",
-                  textTransform: "uppercase",
-                  fontFamily: "'Inter', sans-serif",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading ? 0.6 : 1,
-                  marginTop: 8,
-                  transition: "opacity 0.2s ease",
-                }}
-              >
+              <button type="submit" disabled={loading} className="comparison-btn">
                 Compare
               </button>
             </form>
@@ -277,7 +222,7 @@ const profilePayload = profile ? {
         )}
 
         {comparison && (
-          <div style={{ animation: "slideUp 0.4s cubic-bezier(0.4,0,0.2,1) forwards" }}>
+          <div className="results-wrapper">
 
             <button
               onClick={() => {
@@ -287,214 +232,420 @@ const profilePayload = profile ? {
                 setCollegeA("");
                 setCollegeB("");
               }}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#1B3322",
-                opacity: 0.4,
-                fontSize: 11,
-                letterSpacing: "0.2em",
-                textTransform: "uppercase",
-                cursor: "pointer",
-                fontFamily: "'Inter', sans-serif",
-                marginBottom: 32,
-                padding: 0,
-              }}
+              className="back-btn"
             >
               ← Compare Again
             </button>
 
-            <p style={{
-              fontSize: 11,
-              letterSpacing: "0.25em",
-              color: "#1B3322",
-              opacity: 0.4,
-              textTransform: "uppercase",
-              marginBottom: 24,
-              fontFamily: "'Inter', sans-serif",
-            }}>
-              {stream}
-            </p>
+            <p className="results-stream-label">{stream}</p>
 
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "180px 1fr 1fr",
-              gap: 0,
-            }}>
-              <div />
-              {[comparison.collegeA, comparison.collegeB].map((college) => (
-                <div key={college.name} style={{ padding: "0 20px 20px" }}>
-                  <p style={{
-                    fontFamily: "'Cormorant Garamond', serif",
-                    fontSize: 20,
-                    fontWeight: 500,
-                    color: "#1B3322",
-                    margin: 0,
-                    lineHeight: 1.2,
-                  }}>
-                    {college.name}
-                  </p>
-                  <p style={{
-                    fontSize: 11,
-                    color: "#1B3322",
-                    opacity: 0.4,
-                    margin: "6px 0 0",
-                    letterSpacing: "0.08em",
-                  }}>
-                    {college.location}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ height: 1, background: "rgba(27,51,34,0.15)", marginBottom: 0 }} />
-
-            {FACTORS.map(({ key, label }, i) => (
-              <div
-                key={key}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "180px 1fr 1fr",
-                  borderBottom: "1px solid rgba(27,51,34,0.07)",
-                  background: i % 2 === 0 ? "transparent" : "rgba(27,51,34,0.018)",
-                }}
-              >
-                <div style={{ padding: "18px 16px 18px 0" }}>
-                  <p style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: "#1B3322",
-                    opacity: 0.6,
-                    margin: 0,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                  }}>
-                    {label}
-                  </p>
-                </div>
+            {/* ── Desktop table layout ── */}
+            <div className="desktop-table">
+              {/* Header row */}
+              <div className="dt-header-row">
+                <div className="dt-label-cell" />
                 {[comparison.collegeA, comparison.collegeB].map((college) => (
-                  <div key={college.name} style={{ padding: "18px 20px" }}>
-                    <p style={{
-                      fontSize: 13,
-                      color: "#1B3322",
-                      opacity: 0.72,
-                      margin: 0,
-                      lineHeight: 1.65,
-                    }}>
-                      {(college as any)[key] || "Data not available"}
-                    </p>
-                    {key === "average_salary" && college.salary_source && (
-                      <p style={{
-                        fontSize: 10,
-                        color: "#1B3322",
-                        opacity: 0.3,
-                        margin: "4px 0 0",
-                        fontStyle: "italic",
-                      }}>
-                        {college.salary_source}
-                      </p>
-                    )}
+                  <div key={college.name} className="dt-college-header">
+                    <p className="dt-college-name">{college.name}</p>
+                    <p className="dt-college-location">{college.location}</p>
                   </div>
                 ))}
               </div>
-            ))}
 
-            {/* Top Recruiters */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "180px 1fr 1fr",
-              borderBottom: "1px solid rgba(27,51,34,0.07)",
-            }}>
-              <div style={{ padding: "18px 16px 18px 0" }}>
-                <p style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: "#1B3322",
-                  opacity: 0.6,
-                  margin: 0,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                }}>
-                  Top Recruiters
-                </p>
+              <div className="dt-divider" />
+
+              {FACTORS.map(({ key, label }, i) => (
+                <div key={key} className={`dt-row ${i % 2 !== 0 ? "dt-row-alt" : ""}`}>
+                  <div className="dt-label-cell">
+                    <p className="dt-label">{label}</p>
+                  </div>
+                  {[comparison.collegeA, comparison.collegeB].map((college) => (
+                    <div key={college.name} className="dt-value-cell">
+                      <p className="dt-value">{(college as any)[key] || "Data not available"}</p>
+                      {key === "average_salary" && college.salary_source && (
+                        <p className="dt-source">{college.salary_source}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+
+              {/* Top Recruiters desktop */}
+              <div className="dt-row">
+                <div className="dt-label-cell">
+                  <p className="dt-label">Top Recruiters</p>
+                </div>
+                {[comparison.collegeA, comparison.collegeB].map((college) => (
+                  <div key={college.name} className="dt-value-cell">
+                    <div className="recruiter-tags">
+                      {college.top_recruiters?.map((r) => (
+                        <span key={r} className="recruiter-tag">{r}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-              {[comparison.collegeA, comparison.collegeB].map((college) => (
-                <div key={college.name} style={{ padding: "18px 20px" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {college.top_recruiters?.map((r) => (
-                      <span key={r} style={{
-                        fontSize: 11,
-                        color: "#1B3322",
-                        background: "rgba(27,51,34,0.07)",
-                        padding: "3px 10px",
-                        borderRadius: 2,
-                        letterSpacing: "0.04em",
-                      }}>
-                        {r}
-                      </span>
+            </div>
+
+            {/* ── Mobile card layout ── */}
+            <div className="mobile-cards">
+              {/* College name headers */}
+              <div className="mobile-college-headers">
+                {[comparison.collegeA, comparison.collegeB].map((college, idx) => (
+                  <div key={college.name} className={`mobile-college-header ${idx === 0 ? "mobile-college-a" : "mobile-college-b"}`}>
+                    <p className="mobile-college-name">{college.name}</p>
+                    <p className="mobile-college-location">{college.location}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Factor rows */}
+              {FACTORS.map(({ key, label }, i) => (
+                <div key={key} className={`mobile-factor ${i % 2 !== 0 ? "mobile-factor-alt" : ""}`}>
+                  <p className="mobile-factor-label">{label}</p>
+                  <div className="mobile-factor-values">
+                    {[comparison.collegeA, comparison.collegeB].map((college) => (
+                      <div key={college.name} className="mobile-factor-value-block">
+                        <p className="mobile-college-tag">{college.name.split(" ").slice(0, 2).join(" ")}</p>
+                        <p className="mobile-factor-value">{(college as any)[key] || "N/A"}</p>
+                        {key === "average_salary" && college.salary_source && (
+                          <p className="dt-source">{college.salary_source}</p>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
               ))}
+
+              {/* Top Recruiters mobile */}
+              <div className="mobile-factor">
+                <p className="mobile-factor-label">Top Recruiters</p>
+                <div className="mobile-factor-values">
+                  {[comparison.collegeA, comparison.collegeB].map((college) => (
+                    <div key={college.name} className="mobile-factor-value-block">
+                      <p className="mobile-college-tag">{college.name.split(" ").slice(0, 2).join(" ")}</p>
+                      <div className="recruiter-tags">
+                        {college.top_recruiters?.map((r) => (
+                          <span key={r} className="recruiter-tag">{r}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {/* Verdict */}
-            <div style={{ marginTop: 56, textAlign: "center" }}>
-              <div style={{
-                height: 1,
-                background: "rgba(27,51,34,0.2)",
-                width: verdictVisible ? "100%" : "0%",
-                margin: "0 auto",
-                transition: "width 1s cubic-bezier(0.4,0,0.2,1)",
-              }} />
+            {/* ── Verdict ── */}
+            <div className="verdict-section">
+              <div className={`verdict-line ${verdictVisible ? "verdict-line-visible" : ""}`} />
 
               {verdictVisible && comparison.verdict && (
-                <div style={{
-                  padding: "48px 24px",
-                  animation: "slideUp 0.4s cubic-bezier(0.4,0,0.2,1) forwards",
-                }}>
-                  <p style={{
-                    fontFamily: "'Cormorant Garamond', 'Lora', serif",
-                    fontSize: "clamp(18px, 3vw, 26px)",
-                    fontWeight: 400,
-                    color: "#1B3322",
-                    opacity: 0.6,
-                    margin: 0,
-                    letterSpacing: "0.02em",
-                    lineHeight: 1.6,
-                  }}>
+                <div className="verdict-content">
+                  <p className="verdict-text">
                     Based on your unique profile and aptitude matrix,{" "}
-                    <span style={{
-                      fontWeight: 600,
-                      color: "#1B3322",
-                      opacity: 1,
-                      fontStyle: "italic",
-                    }}>
+                    <span className="verdict-highlight">
                       {comparison.verdict.recommended_college}
                     </span>{" "}
                     is your optimal path.
                   </p>
-                  <p style={{
-                    fontSize: 12,
-                    color: "#1B3322",
-                    opacity: 0.35,
-                    marginTop: 16,
-                    fontStyle: "italic",
-                    fontFamily: "'Cormorant Garamond', serif",
-                    maxWidth: 500,
-                    margin: "16px auto 0",
-                    lineHeight: 1.7,
-                  }}>
-                    {comparison.verdict.reasoning}
-                  </p>
+                  <p className="verdict-reasoning">{comparison.verdict.reasoning}</p>
                 </div>
               )}
             </div>
+
           </div>
         )}
       </div>
 
       <style>{`
+        /* ── Base ── */
+        .comparison-page {
+          min-height: 100vh;
+          background: #FDFBF7;
+          font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+          padding: 48px 24px;
+        }
+        .comparison-container {
+          max-width: 900px;
+          margin: 0 auto;
+        }
+
+        /* ── Hero ── */
+        .comparison-hero { text-align: center; margin-bottom: 56px; }
+        .comparison-eyebrow {
+          font-family: 'Cormorant Garamond', 'Georgia', serif;
+          font-size: 11px;
+          letter-spacing: 0.28em;
+          color: #1B3322;
+          opacity: 0.5;
+          text-transform: uppercase;
+          margin-bottom: 16px;
+        }
+        .comparison-title {
+          font-family: 'Cormorant Garamond', 'Lora', 'Georgia', serif;
+          font-size: clamp(36px, 6vw, 64px);
+          font-weight: 400;
+          color: #1B3322;
+          line-height: 1.1;
+          margin: 0;
+        }
+        .comparison-subtitle {
+          font-family: 'Cormorant Garamond', 'Georgia', serif;
+          font-style: italic;
+          font-size: 15px;
+          color: #1B3322;
+          opacity: 0.45;
+          margin-top: 16px;
+        }
+
+        /* ── Form ── */
+        .comparison-form { max-width: 480px; margin: 0 auto; }
+        .comparison-btn {
+          width: 100%;
+          padding: 16px 0;
+          background: #1B3322;
+          color: #FDFBF7;
+          border: none;
+          font-size: 11px;
+          letter-spacing: 0.28em;
+          text-transform: uppercase;
+          font-family: 'Inter', sans-serif;
+          cursor: pointer;
+          margin-top: 8px;
+          transition: opacity 0.2s ease;
+        }
+        .comparison-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* ── Results wrapper ── */
+        .results-wrapper { animation: slideUp 0.4s cubic-bezier(0.4,0,0.2,1) forwards; }
+        .back-btn {
+          background: transparent;
+          border: none;
+          color: #1B3322;
+          opacity: 0.4;
+          font-size: 11px;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          cursor: pointer;
+          font-family: 'Inter', sans-serif;
+          margin-bottom: 32px;
+          padding: 0;
+        }
+        .results-stream-label {
+          font-size: 11px;
+          letter-spacing: 0.25em;
+          color: #1B3322;
+          opacity: 0.4;
+          text-transform: uppercase;
+          margin-bottom: 24px;
+          font-family: 'Inter', sans-serif;
+        }
+
+        /* ── Desktop table ── */
+        .desktop-table { display: block; }
+        .mobile-cards { display: none; }
+
+        .dt-header-row {
+          display: grid;
+          grid-template-columns: 180px 1fr 1fr;
+          gap: 0;
+        }
+        .dt-label-cell { /* empty spacer in header */ }
+        .dt-college-header { padding: 0 20px 20px; }
+        .dt-college-name {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 20px;
+          font-weight: 500;
+          color: #1B3322;
+          margin: 0;
+          line-height: 1.2;
+        }
+        .dt-college-location {
+          font-size: 11px;
+          color: #1B3322;
+          opacity: 0.4;
+          margin: 6px 0 0;
+          letter-spacing: 0.08em;
+        }
+        .dt-divider {
+          height: 1px;
+          background: rgba(27,51,34,0.15);
+          margin-bottom: 0;
+        }
+        .dt-row {
+          display: grid;
+          grid-template-columns: 180px 1fr 1fr;
+          border-bottom: 1px solid rgba(27,51,34,0.07);
+        }
+        .dt-row-alt { background: rgba(27,51,34,0.018); }
+        .dt-label-cell { padding: 18px 16px 18px 0; }
+        .dt-label {
+          font-size: 10px;
+          font-weight: 600;
+          color: #1B3322;
+          opacity: 0.6;
+          margin: 0;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+        .dt-value-cell { padding: 18px 20px; }
+        .dt-value {
+          font-size: 13px;
+          color: #1B3322;
+          opacity: 0.72;
+          margin: 0;
+          line-height: 1.65;
+        }
+        .dt-source {
+          font-size: 10px;
+          color: #1B3322;
+          opacity: 0.3;
+          margin: 4px 0 0;
+          font-style: italic;
+        }
+
+        /* ── Recruiters ── */
+        .recruiter-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .recruiter-tag {
+          font-size: 11px;
+          color: #1B3322;
+          background: rgba(27,51,34,0.07);
+          padding: 3px 10px;
+          border-radius: 2px;
+          letter-spacing: 0.04em;
+        }
+
+        /* ── Verdict ── */
+        .verdict-section { margin-top: 56px; text-align: center; }
+        .verdict-line {
+          height: 1px;
+          background: rgba(27,51,34,0.2);
+          width: 0%;
+          margin: 0 auto;
+          transition: width 1s cubic-bezier(0.4,0,0.2,1);
+        }
+        .verdict-line-visible { width: 100%; }
+        .verdict-content {
+          padding: 48px 24px;
+          animation: slideUp 0.4s cubic-bezier(0.4,0,0.2,1) forwards;
+        }
+        .verdict-text {
+          font-family: 'Cormorant Garamond', 'Lora', serif;
+          font-size: clamp(18px, 3vw, 26px);
+          font-weight: 400;
+          color: #1B3322;
+          opacity: 0.6;
+          margin: 0;
+          letter-spacing: 0.02em;
+          line-height: 1.6;
+        }
+        .verdict-highlight {
+          font-weight: 600;
+          color: #1B3322;
+          opacity: 1;
+          font-style: italic;
+        }
+        .verdict-reasoning {
+          font-size: 12px;
+          color: #1B3322;
+          opacity: 0.35;
+          font-style: italic;
+          font-family: 'Cormorant Garamond', serif;
+          max-width: 500px;
+          margin: 16px auto 0;
+          line-height: 1.7;
+        }
+
+        /* ── Mobile layout ── */
+        @media (max-width: 640px) {
+          .comparison-page { padding: 32px 16px; }
+          .comparison-hero { margin-bottom: 40px; }
+
+          .desktop-table { display: none; }
+          .mobile-cards { display: block; }
+
+          /* Two-column college name headers */
+          .mobile-college-headers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 4px;
+          }
+          .mobile-college-header {
+            padding: 14px 12px;
+            border-radius: 4px 4px 0 0;
+          }
+          .mobile-college-a { background: rgba(27,51,34,0.06); }
+          .mobile-college-b { background: rgba(27,51,34,0.11); }
+          .mobile-college-name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1B3322;
+            margin: 0;
+            line-height: 1.25;
+          }
+          .mobile-college-location {
+            font-size: 10px;
+            color: #1B3322;
+            opacity: 0.45;
+            margin: 4px 0 0;
+            letter-spacing: 0.05em;
+          }
+
+          /* Each factor block */
+          .mobile-factor {
+            border-bottom: 1px solid rgba(27,51,34,0.07);
+            padding: 14px 0;
+          }
+          .mobile-factor-alt { background: rgba(27,51,34,0.018); }
+          .mobile-factor-label {
+            font-size: 9px;
+            font-weight: 700;
+            color: #1B3322;
+            opacity: 0.5;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            margin: 0 0 10px;
+            font-family: 'Inter', sans-serif;
+          }
+          .mobile-factor-values {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          }
+          .mobile-factor-value-block {
+            background: rgba(27,51,34,0.03);
+            border-radius: 3px;
+            padding: 10px 12px;
+          }
+          .mobile-college-tag {
+            font-size: 9px;
+            font-weight: 600;
+            color: #1B3322;
+            opacity: 0.35;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin: 0 0 5px;
+            font-family: 'Inter', sans-serif;
+          }
+          .mobile-factor-value {
+            font-size: 12px;
+            color: #1B3322;
+            opacity: 0.8;
+            margin: 0;
+            line-height: 1.55;
+            font-family: 'Inter', sans-serif;
+          }
+
+          .verdict-content { padding: 36px 0; }
+          .verdict-section { margin-top: 40px; }
+          .verdict-reasoning { font-size: 13px; }
+
+          .recruiter-tags { gap: 4px; }
+          .recruiter-tag { font-size: 10px; padding: 3px 7px; }
+        }
+
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(14px); }
           to   { opacity: 1; transform: translateY(0); }
