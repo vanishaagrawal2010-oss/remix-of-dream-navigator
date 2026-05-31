@@ -177,15 +177,21 @@ const ComparisonPage = () => {
     }
   };
 
-  // Returns true if the college name matches the verdict recommendation
+  // Returns true only for the college whose name the verdict explicitly names.
+  // Strategy: check which of the two actual college names the verdict string contains.
+  // This avoids false positives when both names share common words (e.g. "IIT").
   const isRecommended = (collegeName: string) => {
     if (!comparison?.verdict?.recommended_college) return false;
-    return comparison.verdict.recommended_college
-      .toLowerCase()
-      .includes(collegeName.toLowerCase().split(" ")[0]) ||
-      collegeName
-        .toLowerCase()
-        .includes(comparison.verdict.recommended_college.toLowerCase().split(" ")[0]);
+    const verdict = comparison.verdict.recommended_college.toLowerCase();
+    const nameA = comparison.collegeA.name.toLowerCase();
+    const nameB = comparison.collegeB.name.toLowerCase();
+    // Find which college the verdict is actually referring to
+    const aScore = nameA.split(" ").filter(w => w.length > 1 && verdict.includes(w)).length;
+    const bScore = nameB.split(" ").filter(w => w.length > 1 && verdict.includes(w)).length;
+    // Only award the dot to the better-matching college; ties go to neither
+    if (aScore === bScore) return false;
+    if (aScore > bScore) return collegeName.toLowerCase() === nameA;
+    return collegeName.toLowerCase() === nameB;
   };
 
   const resetForm = () => {
