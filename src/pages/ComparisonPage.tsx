@@ -177,6 +177,17 @@ const ComparisonPage = () => {
     }
   };
 
+  // Returns true if the college name matches the verdict recommendation
+  const isRecommended = (collegeName: string) => {
+    if (!comparison?.verdict?.recommended_college) return false;
+    return comparison.verdict.recommended_college
+      .toLowerCase()
+      .includes(collegeName.toLowerCase().split(" ")[0]) ||
+      collegeName
+        .toLowerCase()
+        .includes(comparison.verdict.recommended_college.toLowerCase().split(" ")[0]);
+  };
+
   const resetForm = () => {
     setComparison(null);
     setVerdictVisible(false);
@@ -264,20 +275,20 @@ const ComparisonPage = () => {
 
               {/* College legend */}
               <div className="mob-legend">
-                <div className="mob-legend-item">
-                  <span className="mob-dot mob-dot-a" />
-                  <div>
-                    <p className="mob-legend-name">{comparison.collegeA.name}</p>
-                    <p className="mob-legend-loc">{comparison.collegeA.location}</p>
+                {[comparison.collegeA, comparison.collegeB].map((c) => (
+                  <div key={c.name} className="mob-legend-item">
+                    <span className={`mob-dot ${isRecommended(c.name) ? "mob-dot-win" : "mob-dot-lose"}`} />
+                    <div>
+                      <p className="mob-legend-name">
+                        {c.name}
+                        {isRecommended(c.name) && (
+                          <span className="mob-legend-badge">Recommended</span>
+                        )}
+                      </p>
+                      <p className="mob-legend-loc">{c.location}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="mob-legend-item">
-                  <span className="mob-dot mob-dot-b" />
-                  <div>
-                    <p className="mob-legend-name">{comparison.collegeB.name}</p>
-                    <p className="mob-legend-loc">{comparison.collegeB.location}</p>
-                  </div>
-                </div>
+                ))}
               </div>
 
               {/* One card per factor — full width, stacked entries */}
@@ -285,27 +296,21 @@ const ComparisonPage = () => {
                 <div key={key} className="mob-card">
                   <p className="mob-card-label">{label}</p>
                   <div className="mob-card-body">
-                    <div className="mob-entry">
-                      <span className="mob-dot mob-dot-a mob-dot-sm" />
-                      <div className="mob-entry-inner">
-                        <p className="mob-entry-college">{comparison.collegeA.name}</p>
-                        <p className="mob-entry-val">{(comparison.collegeA as any)[key] || "Data not available"}</p>
-                        {key === "average_salary" && comparison.collegeA.salary_source && (
-                          <p className="mob-source">{comparison.collegeA.salary_source}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mob-sep" />
-                    <div className="mob-entry">
-                      <span className="mob-dot mob-dot-b mob-dot-sm" />
-                      <div className="mob-entry-inner">
-                        <p className="mob-entry-college">{comparison.collegeB.name}</p>
-                        <p className="mob-entry-val">{(comparison.collegeB as any)[key] || "Data not available"}</p>
-                        {key === "average_salary" && comparison.collegeB.salary_source && (
-                          <p className="mob-source">{comparison.collegeB.salary_source}</p>
-                        )}
-                      </div>
-                    </div>
+                    {[comparison.collegeA, comparison.collegeB].map((c, idx) => (
+                      <>
+                        {idx === 1 && <div key="sep" className="mob-sep" />}
+                        <div key={c.name} className="mob-entry">
+                          <span className={`mob-dot mob-dot-sm ${isRecommended(c.name) ? "mob-dot-win" : "mob-dot-lose"}`} />
+                          <div className="mob-entry-inner">
+                            <p className="mob-entry-college">{c.name}</p>
+                            <p className="mob-entry-val">{(c as any)[key] || "Data not available"}</p>
+                            {key === "average_salary" && c.salary_source && (
+                              <p className="mob-source">{c.salary_source}</p>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -314,25 +319,20 @@ const ComparisonPage = () => {
               <div className="mob-card">
                 <p className="mob-card-label">Top Recruiters</p>
                 <div className="mob-card-body">
-                  <div className="mob-entry">
-                    <span className="mob-dot mob-dot-a mob-dot-sm" />
-                    <div className="mob-entry-inner">
-                      <p className="mob-entry-college">{comparison.collegeA.name}</p>
-                      <div className="tag-row" style={{ marginTop: 6 }}>
-                        {comparison.collegeA.top_recruiters?.map((r) => <span key={r} className="tag">{r}</span>)}
+                  {[comparison.collegeA, comparison.collegeB].map((c, idx) => (
+                    <>
+                      {idx === 1 && <div key="sep" className="mob-sep" />}
+                      <div key={c.name} className="mob-entry">
+                        <span className={`mob-dot mob-dot-sm ${isRecommended(c.name) ? "mob-dot-win" : "mob-dot-lose"}`} />
+                        <div className="mob-entry-inner">
+                          <p className="mob-entry-college">{c.name}</p>
+                          <div className="tag-row" style={{ marginTop: 6 }}>
+                            {c.top_recruiters?.map((r) => <span key={r} className="tag">{r}</span>)}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="mob-sep" />
-                  <div className="mob-entry">
-                    <span className="mob-dot mob-dot-b mob-dot-sm" />
-                    <div className="mob-entry-inner">
-                      <p className="mob-entry-college">{comparison.collegeB.name}</p>
-                      <div className="tag-row" style={{ marginTop: 6 }}>
-                        {comparison.collegeB.top_recruiters?.map((r) => <span key={r} className="tag">{r}</span>)}
-                      </div>
-                    </div>
-                  </div>
+                    </>
+                  ))}
                 </div>
               </div>
 
@@ -496,26 +496,33 @@ const ComparisonPage = () => {
           .mob-dot {
             flex-shrink: 0;
             border-radius: 50%;
+            width: 10px; height: 10px;
+            margin-top: 4px;
           }
-          .mob-dot-a {
-            width: 9px; height: 9px;
+          .mob-dot-win {
             background: #1B3322;
-            margin-top: 3px;
           }
-          .mob-dot-b {
-            width: 9px; height: 9px;
+          .mob-dot-lose {
             background: transparent;
-            border: 2px solid #1B3322;
-            margin-top: 3px;
+            border: 1.5px solid rgba(27,51,34,0.4);
           }
           .mob-dot-sm {
-            width: 7px; height: 7px;
+            width: 8px; height: 8px;
             margin-top: 5px;
           }
           .mob-legend-name {
             font-family: 'Cormorant Garamond', serif;
             font-size: 15px; font-weight: 600;
             color: #1B3322; margin: 0; line-height: 1.25;
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+          }
+          .mob-legend-badge {
+            font-family: 'Inter', sans-serif;
+            font-size: 8px; font-weight: 700;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            color: #1B3322; background: rgba(27,51,34,0.1);
+            padding: 2px 7px; border-radius: 2px;
+            vertical-align: middle;
           }
           .mob-legend-loc {
             font-size: 11px; color: #1B3322;
