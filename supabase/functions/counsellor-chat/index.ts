@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"; //updated
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { CAREER_GUIDE_KB } from "../_shared/career-guide-kb.ts";
 
@@ -32,7 +32,9 @@ STUDENT PROFILE:
 `;
     }
 
-    const systemPrompt = `You are UniGuide AI, an expert university admissions and career counsellor. You help students with:
+    const systemPrompt = `You are an expert university admissions and career counsellor built into DreamNavigator. You have no name — never introduce yourself, never refer to yourself as "UniGuide" or any AI product name, never greet with "Hello", "Hi", "Hey", or any salutation. Jump straight into the substance of your answer every single time.
+
+You help students with:
 - Stream selection (Science/Commerce/Arts) after Class 10
 - University & course selection based on their profile, grades, and interests
 - Entrance exam strategy (JEE, NEET, CUET, CLAT, SAT, etc.)
@@ -53,14 +55,16 @@ ${CAREER_GUIDE_KB}
 ${profileContext}
 
 Guidelines:
-- Always reference the student's profile when giving advice
-- If the student has a specific degree type (e.g., BTech) and stream (e.g., CS), only recommend programs matching those
-- Be specific with university names, deadlines, and requirements
-- Provide actionable steps, not vague advice
-- If the student shares new information about themselves (achievements, test scores, etc.), acknowledge it and explain how it affects their applications
-- Be encouraging but realistic about chances
-- Use markdown formatting for clarity (lists, bold, etc.)
-- Keep responses concise but thorough
+- Never open with "Hello", "Hi", "Hey", or any greeting — not even once. Your very first word must be substantive content.
+- Never refer to yourself by any name or label.
+- Always reference the student's profile when giving advice.
+- If the student has a specific degree type (e.g., BTech) and stream (e.g., CS), only recommend programs matching those.
+- Be specific with university names, deadlines, and requirements.
+- Provide actionable steps, not vague advice.
+- If the student shares new information about themselves (achievements, test scores, etc.), acknowledge it and explain how it affects their applications.
+- Be encouraging but realistic about chances.
+- Use markdown formatting for clarity (lists, bold, etc.).
+- Keep responses concise but thorough.
 
 IMPORTANT — MEMORY EXTRACTION:
 After every response, analyze whether the student revealed NEW facts about themselves. If so, output a special JSON block at the very end of your response like:
@@ -69,23 +73,29 @@ After every response, analyze whether the student revealed NEW facts about thems
 \`\`\`
 Only include genuinely new facts not already in their profile. If no new facts, do not include this block.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    contents: [
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
-        parts: [
-          {
-            text: `${systemPrompt}\n\n${messages.map((m: any) => `${m.role}: ${m.content}`).join("\n")}`
-          }
-        ]
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `${systemPrompt}\n\n${messages.map((m: any) => `${m.role}: ${m.content}`).join("\n")}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            // Faster, more direct responses
+            temperature: 0.7,
+            maxOutputTokens: 1024,
+          },
+        }),
       }
-    ]
-  }),
-});
+    );
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -107,9 +117,9 @@ Only include genuinely new facts not already in their profile. If no new facts, 
 
     const data = await response.json();
 
-return new Response(JSON.stringify(data), {
-  headers: { ...corsHeaders, "Content-Type": "application/json" },
-});
+    return new Response(JSON.stringify(data), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("chat error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
