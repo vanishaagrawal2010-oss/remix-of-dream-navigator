@@ -17,15 +17,23 @@ type Message = { role: "user" | "assistant"; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/counsellor-chat`;
 
-// Strip AI self-identification and hello greetings the model sometimes adds.
-const sanitiseReply = (text: string): string => {
+// Strip AI self-identification the model insists on adding.
+// Catches plain text, markdown bold (**UniGuide**), and heading (## UniGuide) variants.
+const sanitiseReply = (text: string, isFirstMessage: boolean): string => {
   let t = text;
-  // Remove "UniGuide AI Counsellor:" / "UniGuide AI:" / "UniGuide:" identity headers
-  t = t.replace(/^(uni\s*guide\s*(ai)?\s*(counsellor|counselor|assistant)?[\s:—–-]*)+/gim, "");
-  // Remove standalone greeting lines: "Hello!", "Hi there," "Hey," etc.
-  t = t.replace(/^(hello|hi|hey)(\s+there)?[\s,!.]*\n/gim, "");
-  // Remove greeting at the very start of the reply (no newline after)
-  t = t.replace(/^(hello|hi|hey)(\s+there)?[\s,!.]{0,4}(?=[A-Z])/i, "");
+
+  // Remove any line that is purely an AI name/label (all variants):
+  // "UniGuide AI Counsellor:", "**UniGuide AI**:", "## UniGuide", etc.
+  t = t.replace(/^[#*_\s]*(uni\s*guide|dreamnav(igator)?|dream\s*navigator)\s*(ai)?\s*(counsellor|counselor|assistant|bot)?[*_\s:—–\-]*\n?/gim, "");
+
+  // Remove greeting lines only after the first message
+  if (!isFirstMessage) {
+    // "Hello!", "Hello there,", "Hi!", "Hey there!" on their own line
+    t = t.replace(/^[*_]*(hello|hi|hey)(\s+there)?[*_]*[\s,!.]*\n/gim, "");
+    // Greeting fused with next sentence: "Hello! Here are..." → "Here are..."
+    t = t.replace(/^[*_]*(hello|hi|hey)(\s+there)?[*_]*[\s,!.]{0,6}/i, "");
+  }
+
   return t.trimStart();
 };
 
@@ -202,7 +210,8 @@ const ChatPage = () => {
 
       const data = await resp.json();
       const rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      const content = rawContent ? sanitiseReply(rawContent) : undefined;
+      const isFirstMessage = messages.length === 0;
+      const content = rawContent ? sanitiseReply(rawContent, isFirstMessage) : undefined;
       if (content) updateAssistant(content);
 
       if (assistantContent) {
@@ -242,11 +251,11 @@ const ChatPage = () => {
         onClick={(e) => deleteConversation(conv.id, e)}
         disabled={deletingId === conv.id}
         className={cn(
-          "shrink-0 rounded p-1 transition-all",
-          // Mobile: always visible. Desktop: show on hover only.
-          "opacity-100 lg:opacity-0 lg:group-hover:opacity-100",
-          conv.id === conversationId && "lg:opacity-60",
-          "hover:text-destructive",
+          "shrink-0 rounded p-1 transition-colors",
+          // Always visible; on desktop fade unless hovered
+          "text-muted-foreground/40 hover:text-destructive",
+          "opacity-0 group-hover:opacity-100",
+          conv.id === conversationId ? "opacity-60" : "",
         )}
         aria-label="Delete conversation"
       >
