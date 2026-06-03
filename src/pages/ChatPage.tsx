@@ -17,27 +17,33 @@ type Message = { role: "user" | "assistant"; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/counsellor-chat`;
 
-// Strip AI self-identification the model insists on adding.
-// Catches plain text, markdown bold (**UniGuide**), and heading (## UniGuide) variants.
-const sanitiseReply = (text: string, isFirstMessage: boolean): string => {
-  let t = text;
+/**
+ * Remove AI branding and repetitive greetings from every Gemini reply.
+ * isFirst = true  → allow a greeting on the very first message only.
+ * isFirst = false → strip all greetings too.
+ */
+function sanitiseReply(raw: string, isFirst: boolean): string {
+  let t = raw;
 
-  // Remove any line that is purely an AI name/label (all variants):
-  // "UniGuide AI Counsellor:", "**UniGuide AI**:", "## UniGuide", etc.
-  t = t.replace(/^[#*_\s]*(uni\s*guide|dreamnav(igator)?|dream\s*navigator)\s*(ai)?\s*(counsellor|counselor|assistant|bot)?[*_\s:—–\-]*\n?/gim, "");
+  // 1. Nuke any line that is just a name/label header, in every markdown variant:
+  //    "UniGuide AI Counsellor:", "**UniGuide AI**", "## UniGuide", etc.
+  //    Also catches "DreamNavigator AI:" just in case.
+  const namePattern = /^[ \t]*#{0,6}[ \t]*\**_*(uni[ \t]*guide|dream[ \t]*navigator)([ \t]*(ai|bot|assistant))?([ \t]*(counsellor|counselor))?[ \t]*\**_*[ \t]*[:\-–—]*[ \t]*\n?/gim;
+  t = t.replace(namePattern, "");
 
-  // Remove greeting lines only after the first message
-  if (!isFirstMessage) {
-    // "Hello!", "Hello there,", "Hi!", "Hey there!" on their own line
-    t = t.replace(/^[*_]*(hello|hi|hey)(\s+there)?[*_]*[\s,!.]*\n/gim, "");
-    // Greeting fused with next sentence: "Hello! Here are..." → "Here are..."
-    t = t.replace(/^[*_]*(hello|hi|hey)(\s+there)?[*_]*[\s,!.]{0,6}/i, "");
+  // 2. Strip greetings on every turn after the first.
+  if (!isFirst) {
+    // "Hello!", "Hello there,", "Hi!", "Hey there!" alone on a line
+    t = t.replace(/^[ \t]*\**_*(hello|hi|hey)([ \t]+there)?[ \t]*[,!.]*_*\**[ \t]*\r?\n/gim, "");
+    // Greeting at start of reply followed immediately by content on same line
+    // e.g. "Hello! Here are your options" → "Here are your options"
+    t = t.replace(/^[ \t]*\**_*(hello|hi|hey)([ \t]+there)?[ \t]*[,!.]+[ \t]*_*\**[ \t]*/i, "");
   }
 
   return t.trimStart();
-};
+}
 
-const extractFacts = (content: string): { cleanContent: string; facts: string[] } => {
+function extractFacts(content: string): { cleanContent: string; facts: string[] } {
   const regex = /```extracted_facts\n([\s\S]*?)```/;
   const match = content.match(regex);
   if (!match) return { cleanContent: content, facts: [] };
@@ -47,7 +53,7 @@ const extractFacts = (content: string): { cleanContent: string; facts: string[] 
   } catch {
     return { cleanContent: content, facts: [] };
   }
-};
+}
 
 const ChatPage = () => {
   const { user } = useAuth();
@@ -72,8 +78,7 @@ const ChatPage = () => {
     const vp = getViewport();
     if (!vp) return;
     const onScroll = () => {
-      const distanceFromBottom = vp.scrollHeight - vp.scrollTop - vp.clientHeight;
-      setShowJumpDown(distanceFromBottom > 120);
+      setShowJumpDown(vp.scrollHeight - vp.scrollTop - vp.clientHeight > 120);
     };
     onScroll();
     vp.addEventListener("scroll", onScroll, { passive: true });
@@ -95,9 +100,7 @@ const ChatPage = () => {
     if (data) setConversations(data);
   };
 
-  useEffect(() => {
-    loadConversations();
-  }, [user, conversationId]);
+  useEffect(() => { loadConversations(); }, [user, conversationId]);
 
   useEffect(() => {
     if (!conversationId) { setMessages([]); return; }
@@ -119,27 +122,17 @@ const ChatPage = () => {
   const createConversation = async () => {
     if (!user) return null;
     const { data } = await supabase.from("conversations").insert({ user_id: user.id, title: "New Chat" }).select().single();
-    if (data) {
-      setConversationId(data.id);
-      setMessages([]);
-      return data.id;
-    }
+    if (data) { setConversationId(data.id); setMessages([]); return data.id; }
     return null;
   };
 
   const deleteConversation = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // don't select the conversation when clicking delete
+    e.stopPropagation();
     setDeletingId(id);
     try {
-      // Delete messages first (FK constraint), then the conversation
       await supabase.from("messages").delete().eq("conversation_id", id);
       await supabase.from("conversations").delete().eq("id", id);
-
-      // If we deleted the active conversation, clear the view
-      if (id === conversationId) {
-        setConversationId(null);
-        setMessages([]);
-      }
+      if (id === conversationId) { setConversationId(null); setMessages([]); }
       await loadConversations();
     } catch {
       toast({ title: "Couldn't delete chat", variant: "destructive" });
@@ -154,26 +147,22 @@ const ChatPage = () => {
     setInput("");
 
     let convId = conversationId;
-    if (!convId) {
-      convId = await createConversation();
-      if (!convId) return;
-    }
+    if (!convId) { convId = await createConversation(); if (!convId) return; }
 
     const userMsg: Message = { role: "user", content: userMessage };
+    const isFirstMessage = messages.length === 0;
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
 
     await supabase.from("messages").insert({ conversation_id: convId, user_id: user.id, role: "user", content: userMessage });
 
     let assistantContent = "";
-    const updateAssistant = (chunk: string) => {
-      assistantContent += chunk;
+    const updateAssistant = (text: string) => {
+      assistantContent = text;
       setMessages(prev => {
         const last = prev[prev.length - 1];
-        if (last?.role === "assistant") {
-          return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantContent } : m);
-        }
-        return [...prev, { role: "assistant", content: assistantContent }];
+        if (last?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: text } : m);
+        return [...prev, { role: "assistant", content: text }];
       });
     };
 
@@ -209,10 +198,13 @@ const ChatPage = () => {
       }
 
       const data = await resp.json();
-      const rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      const isFirstMessage = messages.length === 0;
-      const content = rawContent ? sanitiseReply(rawContent, isFirstMessage) : undefined;
-      if (content) updateAssistant(content);
+      const rawContent: string | undefined = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (rawContent) {
+        const clean = sanitiseReply(rawContent, isFirstMessage);
+        updateAssistant(clean);
+        assistantContent = clean;
+      }
 
       if (assistantContent) {
         const { cleanContent, facts } = extractFacts(assistantContent);
@@ -224,7 +216,7 @@ const ChatPage = () => {
           await updateProfile({ extracted_facts: merged as any });
         }
         await supabase.from("messages").insert({ conversation_id: convId, user_id: user.id, role: "assistant", content: assistantContent });
-        if (messages.length === 0) {
+        if (isFirstMessage) {
           const title = userMessage.slice(0, 50) + (userMessage.length > 50 ? "..." : "");
           await supabase.from("conversations").update({ title }).eq("id", convId);
         }
@@ -236,28 +228,26 @@ const ChatPage = () => {
     }
   };
 
-  // Reusable conversation list item — used in both desktop sidebar and mobile sheet
+  // Conversation row — delete button always visible, no hover tricks needed
   const ConvItem = ({ conv, onSelect }: { conv: typeof conversations[0]; onSelect?: () => void }) => (
     <div
       className={cn(
-        "group w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors mb-1 cursor-pointer",
-        conv.id === conversationId ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"
+        "w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors mb-1 cursor-pointer",
+        conv.id === conversationId
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-secondary"
       )}
       onClick={() => { setConversationId(conv.id); onSelect?.(); }}
     >
       <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate flex-1">{conv.title || "New Chat"}</span>
+      <span className="truncate flex-1 text-left">{conv.title || "New Chat"}</span>
+
+      {/* Delete button — always visible, no hover magic */}
       <button
         onClick={(e) => deleteConversation(conv.id, e)}
         disabled={deletingId === conv.id}
-        className={cn(
-          "shrink-0 rounded p-1 transition-colors",
-          // Always visible; on desktop fade unless hovered
-          "text-muted-foreground/40 hover:text-destructive",
-          "opacity-0 group-hover:opacity-100",
-          conv.id === conversationId ? "opacity-60" : "",
-        )}
-        aria-label="Delete conversation"
+        title="Delete conversation"
+        className="shrink-0 ml-1 rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
       >
         {deletingId === conv.id
           ? <span className="h-3.5 w-3.5 block animate-spin rounded-full border border-current border-t-transparent" />
@@ -269,7 +259,8 @@ const ChatPage = () => {
 
   return (
     <div className="flex h-[calc(100vh-96px)] -mt-6">
-      {/* Desktop sidebar */}
+
+      {/* ── Desktop sidebar ── */}
       <div className="hidden lg:flex w-72 flex-col border-r border-border bg-card">
         <div className="p-4 border-b border-border">
           <Button onClick={() => { setConversationId(null); setMessages([]); }} className="w-full gap-2" size="sm">
@@ -277,16 +268,16 @@ const ChatPage = () => {
           </Button>
         </div>
         <ScrollArea className="flex-1 p-2">
-          {conversations.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center mt-6 px-4">No conversations yet. Start chatting!</p>
-          ) : (
-            conversations.map(conv => <ConvItem key={conv.id} conv={conv} />)
-          )}
+          {conversations.length === 0
+            ? <p className="text-xs text-muted-foreground text-center mt-6 px-4">No conversations yet. Start chatting!</p>
+            : conversations.map(conv => <ConvItem key={conv.id} conv={conv} />)
+          }
         </ScrollArea>
       </div>
 
-      {/* Chat area */}
+      {/* ── Chat area ── */}
       <div className="flex-1 flex flex-col min-w-0">
+
         {/* Mobile history bar */}
         <div className="lg:hidden flex items-center justify-between border-b border-border px-3 py-2">
           <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
@@ -302,19 +293,17 @@ const ChatPage = () => {
               <div className="p-3">
                 <Button
                   onClick={() => { setConversationId(null); setMessages([]); setHistoryOpen(false); }}
-                  className="w-full gap-2 mb-2"
-                  size="sm"
+                  className="w-full gap-2 mb-2" size="sm"
                 >
                   <Plus className="h-4 w-4" /> New Chat
                 </Button>
                 <ScrollArea className="h-[calc(100vh-160px)]">
-                  {conversations.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center mt-6 px-4">No conversations yet.</p>
-                  ) : (
-                    conversations.map(conv => (
-                      <ConvItem key={conv.id} conv={conv} onSelect={() => setHistoryOpen(false)} />
-                    ))
-                  )}
+                  {conversations.length === 0
+                    ? <p className="text-xs text-muted-foreground text-center mt-6 px-4">No conversations yet.</p>
+                    : conversations.map(conv => (
+                        <ConvItem key={conv.id} conv={conv} onSelect={() => setHistoryOpen(false)} />
+                      ))
+                  }
                 </ScrollArea>
               </div>
             </SheetContent>
@@ -324,7 +313,7 @@ const ChatPage = () => {
           </Button>
         </div>
 
-        {/* Empty state */}
+        {/* ── Empty state ── */}
         {messages.length === 0 && !conversationId ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center max-w-md space-y-4">
@@ -336,7 +325,12 @@ const ChatPage = () => {
                 Ask anything about universities, applications, scholarships, SOPs, or your study plans. Every conversation is remembered across sessions.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-4">
-                {["Which universities match my profile?", "Help me plan my application timeline", "What scholarships am I eligible for?", "Review my SOP draft"].map(q => (
+                {[
+                  "Which universities match my profile?",
+                  "Help me plan my application timeline",
+                  "What scholarships am I eligible for?",
+                  "Review my SOP draft",
+                ].map(q => (
                   <button
                     key={q}
                     onClick={() => setInput(q)}
@@ -354,7 +348,11 @@ const ChatPage = () => {
               {messages.map((msg, i) => {
                 const isLastUser = msg.role === "user" && i === messages.length - 1;
                 return (
-                  <div key={i} ref={isLastUser ? lastUserMsgRef : undefined} className={cn("flex gap-3 scroll-mt-4", msg.role === "user" ? "justify-end" : "justify-start")}>
+                  <div
+                    key={i}
+                    ref={isLastUser ? lastUserMsgRef : undefined}
+                    className={cn("flex gap-3 scroll-mt-4", msg.role === "user" ? "justify-end" : "justify-start")}
+                  >
                     {msg.role === "assistant" && (
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-1">
                         <Bot className="h-4 w-4 text-primary" />
@@ -380,6 +378,7 @@ const ChatPage = () => {
                   </div>
                 );
               })}
+
               {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
                 <div className="flex gap-3 items-center">
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
@@ -395,7 +394,7 @@ const ChatPage = () => {
           </ScrollArea>
         )}
 
-        {/* Input bar */}
+        {/* ── Input bar ── */}
         <div className="relative border-t border-border px-4 pt-2 pb-2 md:pb-3">
           {showJumpDown && (
             <button
@@ -407,7 +406,10 @@ const ChatPage = () => {
               <ArrowDown className="h-4 w-4" />
             </button>
           )}
-          <form onSubmit={e => { e.preventDefault(); sendMessage(); }} className="max-w-3xl mx-auto flex gap-2">
+          <form
+            onSubmit={e => { e.preventDefault(); sendMessage(); }}
+            className="max-w-3xl mx-auto flex gap-2"
+          >
             <Input
               value={input}
               onChange={e => setInput(e.target.value)}
@@ -419,6 +421,7 @@ const ChatPage = () => {
             </Button>
           </form>
         </div>
+
       </div>
     </div>
   );
