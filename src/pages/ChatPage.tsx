@@ -479,7 +479,8 @@ const ChatPage = () => {
     )}
 
     <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-  </>;
+  </>
+  );
 };
 
 export default ChatPage;
