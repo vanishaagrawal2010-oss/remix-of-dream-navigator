@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Plus, MessageSquare, Bot, User, ArrowDown, History } from "lucide-react";
+import { Send, Plus, MessageSquare, Bot, User, ArrowDown, History, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -16,6 +16,18 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 type Message = { role: "user" | "assistant"; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/counsellor-chat`;
+
+// Strip AI self-identification and hello greetings the model sometimes adds.
+const sanitiseReply = (text: string): string => {
+  let t = text;
+  // Remove "UniGuide AI Counsellor:" / "UniGuide AI:" / "UniGuide:" identity headers
+  t = t.replace(/^(uni\s*guide\s*(ai)?\s*(counsellor|counselor|assistant)?[\s:—–-]*)+/gim, "");
+  // Remove standalone greeting lines: "Hello!", "Hi there," "Hey," etc.
+  t = t.replace(/^(hello|hi|hey)(\s+there)?[\s,!.]*\n/gim, "");
+  // Remove greeting at the very start of the reply (no newline after)
+  t = t.replace(/^(hello|hi|hey)(\s+there)?[\s,!.]{0,4}(?=[A-Z])/i, "");
+  return t.trimStart();
+};
 
 const extractFacts = (content: string): { cleanContent: string; facts: string[] } => {
   const regex = /```extracted_facts\n([\s\S]*?)```/;
@@ -37,6 +49,7 @@ const ChatPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<{ id: string; title: string | null; updated_at: string }[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
@@ -44,11 +57,9 @@ const ChatPage = () => {
   const [showJumpDown, setShowJumpDown] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  // Get the actual scrollable viewport inside Radix ScrollArea
   const getViewport = (): HTMLElement | null =>
     scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
 
-  // Track whether the user is near the bottom; show the jump-down button otherwise
   useEffect(() => {
     const vp = getViewport();
     if (!vp) return;
@@ -66,10 +77,18 @@ const ChatPage = () => {
     if (vp) vp.scrollTo({ top: vp.scrollHeight, behavior: "smooth" });
   };
 
-  useEffect(() => {
+  const loadConversations = async () => {
     if (!user) return;
-    supabase.from("conversations").select("id, title, updated_at").eq("user_id", user.id).order("updated_at", { ascending: false })
-      .then(({ data }) => { if (data) setConversations(data); });
+    const { data } = await supabase
+      .from("conversations")
+      .select("id, title, updated_at")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false });
+    if (data) setConversations(data);
+  };
+
+  useEffect(() => {
+    loadConversations();
   }, [user, conversationId]);
 
   useEffect(() => {
@@ -80,13 +99,9 @@ const ChatPage = () => {
       });
   }, [conversationId]);
 
-  // Only scroll when the USER sends a new message — pin the user's question
-  // near the top so the streaming assistant reply renders below it without
-  // pushing the viewport down.
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "user") {
-      // Defer to next paint so the new node is mounted
       requestAnimationFrame(() => {
         lastUserMsgRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
@@ -102,6 +117,27 @@ const ChatPage = () => {
       return data.id;
     }
     return null;
+  };
+
+  const deleteConversation = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // don't select the conversation when clicking delete
+    setDeletingId(id);
+    try {
+      // Delete messages first (FK constraint), then the conversation
+      await supabase.from("messages").delete().eq("conversation_id", id);
+      await supabase.from("conversations").delete().eq("id", id);
+
+      // If we deleted the active conversation, clear the view
+      if (id === conversationId) {
+        setConversationId(null);
+        setMessages([]);
+      }
+      await loadConversations();
+    } catch {
+      toast({ title: "Couldn't delete chat", variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const sendMessage = async () => {
@@ -165,23 +201,19 @@ const ChatPage = () => {
       }
 
       const data = await resp.json();
-const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-if (content) updateAssistant(content);
-      // Extract facts and update profile
+      const rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const content = rawContent ? sanitiseReply(rawContent) : undefined;
+      if (content) updateAssistant(content);
+
       if (assistantContent) {
         const { cleanContent, facts } = extractFacts(assistantContent);
-        
-        // Update displayed message to clean version
         if (facts.length > 0) {
           setMessages(prev => prev.map((m, i) => i === prev.length - 1 ? { ...m, content: cleanContent } : m));
           assistantContent = cleanContent;
-          
-          // Update profile with new facts
           const existing = (profile?.extracted_facts as string[]) || [];
           const merged = [...new Set([...existing, ...facts])];
           await updateProfile({ extracted_facts: merged as any });
         }
-
         await supabase.from("messages").insert({ conversation_id: convId, user_id: user.id, role: "assistant", content: assistantContent });
         if (messages.length === 0) {
           const title = userMessage.slice(0, 50) + (userMessage.length > 50 ? "..." : "");
@@ -195,9 +227,40 @@ if (content) updateAssistant(content);
     }
   };
 
+  // Reusable conversation list item — used in both desktop sidebar and mobile sheet
+  const ConvItem = ({ conv, onSelect }: { conv: typeof conversations[0]; onSelect?: () => void }) => (
+    <div
+      className={cn(
+        "group w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors mb-1 cursor-pointer",
+        conv.id === conversationId ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"
+      )}
+      onClick={() => { setConversationId(conv.id); onSelect?.(); }}
+    >
+      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate flex-1">{conv.title || "New Chat"}</span>
+      <button
+        onClick={(e) => deleteConversation(conv.id, e)}
+        disabled={deletingId === conv.id}
+        className={cn(
+          "shrink-0 rounded p-1 transition-all",
+          // Mobile: always visible. Desktop: show on hover only.
+          "opacity-100 lg:opacity-0 lg:group-hover:opacity-100",
+          conv.id === conversationId && "lg:opacity-60",
+          "hover:text-destructive",
+        )}
+        aria-label="Delete conversation"
+      >
+        {deletingId === conv.id
+          ? <span className="h-3.5 w-3.5 block animate-spin rounded-full border border-current border-t-transparent" />
+          : <Trash2 className="h-3.5 w-3.5" />
+        }
+      </button>
+    </div>
+  );
+
   return (
     <div className="flex h-[calc(100vh-96px)] -mt-6">
-      {/* Desktop conversation list */}
+      {/* Desktop sidebar */}
       <div className="hidden lg:flex w-72 flex-col border-r border-border bg-card">
         <div className="p-4 border-b border-border">
           <Button onClick={() => { setConversationId(null); setMessages([]); }} className="w-full gap-2" size="sm">
@@ -205,24 +268,16 @@ if (content) updateAssistant(content);
           </Button>
         </div>
         <ScrollArea className="flex-1 p-2">
-          {conversations.map(conv => (
-            <button
-              key={conv.id}
-              onClick={() => setConversationId(conv.id)}
-              className={cn(
-                "w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors mb-1",
-                conv.id === conversationId ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"
-              )}
-            >
-              <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{conv.title || "New Chat"}</span>
-            </button>
-          ))}
+          {conversations.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center mt-6 px-4">No conversations yet. Start chatting!</p>
+          ) : (
+            conversations.map(conv => <ConvItem key={conv.id} conv={conv} />)
+          )}
         </ScrollArea>
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile history bar */}
         <div className="lg:hidden flex items-center justify-between border-b border-border px-3 py-2">
           <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
@@ -244,19 +299,13 @@ if (content) updateAssistant(content);
                   <Plus className="h-4 w-4" /> New Chat
                 </Button>
                 <ScrollArea className="h-[calc(100vh-160px)]">
-                  {conversations.map(conv => (
-                    <button
-                      key={conv.id}
-                      onClick={() => { setConversationId(conv.id); setHistoryOpen(false); }}
-                      className={cn(
-                        "w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors mb-1",
-                        conv.id === conversationId ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"
-                      )}
-                    >
-                      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{conv.title || "New Chat"}</span>
-                    </button>
-                  ))}
+                  {conversations.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center mt-6 px-4">No conversations yet.</p>
+                  ) : (
+                    conversations.map(conv => (
+                      <ConvItem key={conv.id} conv={conv} onSelect={() => setHistoryOpen(false)} />
+                    ))
+                  )}
                 </ScrollArea>
               </div>
             </SheetContent>
@@ -266,15 +315,16 @@ if (content) updateAssistant(content);
           </Button>
         </div>
 
+        {/* Empty state */}
         {messages.length === 0 && !conversationId ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="text-center max-w-md space-y-4">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
                 <Bot className="h-8 w-8 text-primary" />
               </div>
-              <h2 className="font-heading text-2xl font-bold">AI University Counsellor</h2>
+              <h2 className="font-heading text-2xl font-bold">Your Counsellor</h2>
               <p className="text-muted-foreground text-sm">
-                Ask me anything about universities, applications, scholarships, SOPs, or your study abroad plans. I remember everything you tell me across sessions.
+                Ask anything about universities, applications, scholarships, SOPs, or your study plans. Every conversation is remembered across sessions.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-4">
                 {["Which universities match my profile?", "Help me plan my application timeline", "What scholarships am I eligible for?", "Review my SOP draft"].map(q => (
@@ -295,32 +345,30 @@ if (content) updateAssistant(content);
               {messages.map((msg, i) => {
                 const isLastUser = msg.role === "user" && i === messages.length - 1;
                 return (
-                <div key={i} ref={isLastUser ? lastUserMsgRef : undefined} className={cn("flex gap-3 scroll-mt-4", msg.role === "user" ? "justify-end" : "justify-start")}>
-                  {msg.role === "assistant" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-1">
-                      <Bot className="h-4 w-4 text-primary" />
-                    </div>
-                  )}
-                  <Card className={cn(
-                    "max-w-[80%] p-3 text-sm leading-relaxed",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "glass-card"
-                  )}>
-                    {msg.role === "assistant" ? (
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <div key={i} ref={isLastUser ? lastUserMsgRef : undefined} className={cn("flex gap-3 scroll-mt-4", msg.role === "user" ? "justify-end" : "justify-start")}>
+                    {msg.role === "assistant" && (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-1">
+                        <Bot className="h-4 w-4 text-primary" />
                       </div>
-                    ) : (
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
                     )}
-                  </Card>
-                  {msg.role === "user" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary mt-1">
-                      <User className="h-4 w-4" />
-                    </div>
-                  )}
-                </div>
+                    <Card className={cn(
+                      "max-w-[80%] p-3 text-sm leading-relaxed",
+                      msg.role === "user" ? "bg-primary text-primary-foreground" : "glass-card"
+                    )}>
+                      {msg.role === "assistant" ? (
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                      )}
+                    </Card>
+                    {msg.role === "user" && (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary mt-1">
+                        <User className="h-4 w-4" />
+                      </div>
+                    )}
+                  </div>
                 );
               })}
               {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
@@ -338,6 +386,7 @@ if (content) updateAssistant(content);
           </ScrollArea>
         )}
 
+        {/* Input bar */}
         <div className="relative border-t border-border px-4 pt-2 pb-2 md:pb-3">
           {showJumpDown && (
             <button
