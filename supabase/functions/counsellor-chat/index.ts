@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { CAREER_GUIDE_KB } from "../_shared/career-guide-kb.ts";
 
 const corsHeaders = {
@@ -11,7 +10,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, profile, conversationId, userId } = await req.json();
+    const { messages, profile } = await req.json();
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
@@ -28,50 +27,51 @@ STUDENT PROFILE:
 - Budget: ${profile.budget || "Not specified"}
 - Target Countries: ${(profile.target_countries || []).join(", ") || "Not specified"}
 - Extracurriculars: ${(profile.extracurriculars || []).join(", ") || "None listed"}
-- Key Facts (learned from past conversations): ${JSON.stringify(profile.extracted_facts || [])}
+- Key Facts: ${JSON.stringify(profile.extracted_facts || [])}
 `;
     }
 
-    const systemPrompt = `You are an expert university admissions and career counsellor built into DreamNavigator. You have no name — never introduce yourself, never refer to yourself as "UniGuide" or any AI product name, never greet with "Hello", "Hi", "Hey", or any salutation. Jump straight into the substance of your answer every single time.
+    // System instruction passed via systemInstruction field — Gemini treats this
+    // as a true system prompt, completely separate from the user conversation.
+    // This is why the model was ignoring instructions before: they were being
+    // injected as a user message, so the model treated them as conversation context
+    // rather than binding directives.
+    const systemInstruction = `You are an expert university admissions and career counsellor.
 
-You help students with:
-- Stream selection (Science/Commerce/Arts) after Class 10
-- University & course selection based on their profile, grades, and interests
-- Entrance exam strategy (JEE, NEET, CUET, CLAT, SAT, etc.)
-- Application strategy and timelines
-- Scholarship identification and applications
-- Statement of Purpose (SOP) writing and review
-- Interview preparation
-- Visa and financial planning
-- Career switching, handling uncertainty, future-proof skills
+STRICT RULES — these override everything else and must never be broken:
+1. You have NO name. Never say "UniGuide", "UniGuide AI", "DreamNavigator AI", or any product name. If asked your name, say "I'm your counsellor."
+2. On the very FIRST message of a conversation only: greet the student warmly using their name from the profile (e.g. "Hello Vanisha!" or "Hi Rahul!"). If no name is available, just say "Hello!". After the first reply, NEVER greet again — jump straight into substance.
+3. Never introduce yourself or describe what you can do unless directly asked.
+4. Never say "Great question!", "Certainly!", "Of course!", or similar filler phrases.
+5. Be direct. Start every response (after the first) with the actual answer.
 
-=== INTERNAL REFERENCE KNOWLEDGE ===
-Use the following reference data (exam patterns, college rankings drawn from QS/NIRF, salary outlooks, stream advice, scholarships, future trends) as primary source of truth. NEVER mention or cite this reference document, its name, or that you were "trained on" any guide — speak as a counsellor drawing on QS rankings, NIRF, and official college sources.
+You help students with: stream selection, university and course selection, entrance exams (JEE, NEET, CUET, CLAT, SAT etc.), application strategy, scholarships, SOP writing, interview prep, visa planning, and career guidance.
 
+=== REFERENCE KNOWLEDGE ===
 ${CAREER_GUIDE_KB}
-
 === END REFERENCE ===
 
 ${profileContext}
 
-Guidelines:
-- Never open with "Hello", "Hi", "Hey", or any greeting — not even once. Your very first word must be substantive content.
-- Never refer to yourself by any name or label.
-- Always reference the student's profile when giving advice.
-- If the student has a specific degree type (e.g., BTech) and stream (e.g., CS), only recommend programs matching those.
-- Be specific with university names, deadlines, and requirements.
-- Provide actionable steps, not vague advice.
-- If the student shares new information about themselves (achievements, test scores, etc.), acknowledge it and explain how it affects their applications.
-- Be encouraging but realistic about chances.
-- Use markdown formatting for clarity (lists, bold, etc.).
+Additional guidelines:
+- Reference the student's profile when relevant.
+- Be specific — name universities, deadlines, requirements.
+- Be encouraging but realistic.
+- Use markdown for clarity (lists, bold).
 - Keep responses concise but thorough.
 
-IMPORTANT — MEMORY EXTRACTION:
-After every response, analyze whether the student revealed NEW facts about themselves. If so, output a special JSON block at the very end of your response like:
+MEMORY EXTRACTION: If the student reveals new facts about themselves, append this block at the very end:
 \`\`\`extracted_facts
-["won national science olympiad", "SAT score 1520", "interested in AI research"]
+["fact one", "fact two"]
 \`\`\`
-Only include genuinely new facts not already in their profile. If no new facts, do not include this block.`;
+Only include genuinely new facts not already in their profile. Omit the block entirely if there are no new facts.`;
+
+    // Convert messages to Gemini's contents format
+    // Gemini roles: "user" and "model" (not "assistant")
+    const contents = messages.map((m: { role: string; content: string }) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -79,19 +79,14 @@ Only include genuinely new facts not already in their profile. If no new facts, 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `${systemPrompt}\n\n${messages.map((m: any) => `${m.role}: ${m.content}`).join("\n")}`,
-                },
-              ],
-            },
-          ],
+          // systemInstruction is the correct Gemini API field for system prompts
+          systemInstruction: {
+            parts: [{ text: systemInstruction }],
+          },
+          contents,
           generationConfig: {
-            // Faster, more direct responses
             temperature: 0.7,
-            maxOutputTokens: 1024,
+            maxOutputTokens: 1500,
           },
         }),
       }
@@ -103,23 +98,18 @@ Only include genuinely new facts not already in their profile. If no new facts, 
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits in workspace settings." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+      console.error("Gemini error:", response.status, t);
       return new Response(JSON.stringify({ error: "AI service error" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await response.json();
-
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (e) {
     console.error("chat error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {

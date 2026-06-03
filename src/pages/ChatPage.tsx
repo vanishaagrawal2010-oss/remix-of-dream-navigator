@@ -55,6 +55,68 @@ function extractFacts(content: string): { cleanContent: string; facts: string[] 
   }
 }
 
+
+// Extracted as a top-level component so useState works correctly (hooks
+// cannot be used inside components defined inside another component).
+type ConvItemProps = {
+  conv: { id: string; title: string | null; updated_at: string };
+  activeId: string | null;
+  deletingId: string | null;
+  onSelect: () => void;
+  onDeleteClick: (id: string, e: React.MouseEvent) => void;
+};
+
+const ConvItem = ({ conv, activeId, deletingId, onSelect, onDeleteClick }: ConvItemProps) => {
+  const [hovered, setHovered] = useState(false);
+  const isActive = conv.id === activeId;
+  return (
+    <div
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        borderRadius: 8, padding: "8px 12px", marginBottom: 4,
+        cursor: "pointer", transition: "background 0.15s",
+        background: isActive ? "hsl(var(--primary) / 0.1)" : hovered ? "hsl(var(--secondary))" : "transparent",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onSelect}
+    >
+      <MessageSquare style={{ width: 14, height: 14, flexShrink: 0,
+        color: isActive ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
+      <span style={{
+        flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        fontSize: 13, color: isActive ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+      }}>
+        {conv.title || "New Chat"}
+      </span>
+
+      {/* Bin icon — fades in on row hover, turns red on its own hover */}
+      <button
+        onClick={(e) => onDeleteClick(conv.id, e)}
+        disabled={deletingId === conv.id}
+        title="Delete chat"
+        style={{
+          flexShrink: 0, background: "transparent", border: "none",
+          borderRadius: 4, padding: 4, cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          opacity: hovered ? 1 : 0,
+          transition: "opacity 0.15s",
+          color: "hsl(var(--muted-foreground))",
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "hsl(var(--destructive))"; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "hsl(var(--muted-foreground))"; }}
+      >
+        {deletingId === conv.id
+          ? <span style={{ width: 14, height: 14, display: "block", borderRadius: "50%",
+              border: "1.5px solid currentColor", borderTopColor: "transparent",
+              animation: "spin 0.6s linear infinite" }} />
+          : <Trash2 style={{ width: 14, height: 14 }} />
+        }
+      </button>
+    </div>
+  );
+};
+
 const ChatPage = () => {
   const { user } = useAuth();
   const { profile, updateProfile } = useProfile();
@@ -234,42 +296,7 @@ const ChatPage = () => {
     }
   };
 
-  // Conversation row with hover-revealed delete button (using React state, not CSS hover)
-  const ConvItem = ({ conv, onSelect }: { conv: typeof conversations[0]; onSelect?: () => void }) => {
-    const [hovered, setHovered] = useState(false);
-    return (
-      <div
-        style={{ display: "flex", alignItems: "center", gap: 8, borderRadius: 8, padding: "8px 12px", marginBottom: 4, cursor: "pointer", transition: "background 0.15s",
-          background: conv.id === conversationId ? "hsl(var(--primary) / 0.1)" : hovered ? "hsl(var(--secondary))" : "transparent" }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={() => { setConversationId(conv.id); onSelect?.(); }}
-      >
-        <MessageSquare style={{ width: 14, height: 14, flexShrink: 0, color: conv.id === conversationId ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13,
-          color: conv.id === conversationId ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
-          {conv.title || "New Chat"}
-        </span>
 
-        {/* Grey bin — visible on hover, red on its own hover */}
-        <button
-          onClick={(e) => confirmAndDelete(conv.id, e)}
-          disabled={deletingId === conv.id}
-          title="Delete chat"
-          style={{ flexShrink: 0, background: "transparent", border: "none", borderRadius: 4, padding: 4, cursor: "pointer",
-            opacity: hovered ? 1 : 0, transition: "opacity 0.15s, color 0.15s",
-            color: "hsl(var(--muted-foreground))", display: "flex", alignItems: "center", justifyContent: "center" }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "hsl(var(--destructive))"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "hsl(var(--muted-foreground))"; }}
-        >
-          {deletingId === conv.id
-            ? <span style={{ width: 14, height: 14, display: "block", borderRadius: "50%", border: "1.5px solid currentColor", borderTopColor: "transparent", animation: "spin 0.6s linear infinite" }} />
-            : <Trash2 style={{ width: 14, height: 14 }} />
-          }
-        </button>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -285,7 +312,7 @@ const ChatPage = () => {
         <ScrollArea className="flex-1 p-2">
           {conversations.length === 0
             ? <p className="text-xs text-muted-foreground text-center mt-6 px-4">No conversations yet. Start chatting!</p>
-            : conversations.map(conv => <ConvItem key={conv.id} conv={conv} />)
+            : conversations.map(conv => <ConvItem key={conv.id} conv={conv} activeId={conversationId} deletingId={deletingId} onSelect={() => setConversationId(conv.id)} onDeleteClick={confirmAndDelete} />)
           }
         </ScrollArea>
       </div>
@@ -316,7 +343,7 @@ const ChatPage = () => {
                   {conversations.length === 0
                     ? <p className="text-xs text-muted-foreground text-center mt-6 px-4">No conversations yet.</p>
                     : conversations.map(conv => (
-                        <ConvItem key={conv.id} conv={conv} onSelect={() => setHistoryOpen(false)} />
+                        <ConvItem key={conv.id} conv={conv} activeId={conversationId} deletingId={deletingId} onSelect={() => { setConversationId(conv.id); setHistoryOpen(false); }} onDeleteClick={confirmAndDelete} />
                       ))
                   }
                 </ScrollArea>
