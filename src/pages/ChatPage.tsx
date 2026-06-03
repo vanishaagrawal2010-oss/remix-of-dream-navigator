@@ -64,6 +64,7 @@ const ChatPage = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<{ id: string; title: string | null; updated_at: string }[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const lastUserMsgRef = useRef<HTMLDivElement>(null);
@@ -126,8 +127,13 @@ const ChatPage = () => {
     return null;
   };
 
-  const deleteConversation = async (id: string, e: React.MouseEvent) => {
+  const confirmAndDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setConfirmDeleteId(id);
+  };
+
+  const deleteConversation = async (id: string) => {
+    setConfirmDeleteId(null);
     setDeletingId(id);
     try {
       await supabase.from("messages").delete().eq("conversation_id", id);
@@ -228,36 +234,45 @@ const ChatPage = () => {
     }
   };
 
-  // Conversation row — delete button always visible, no hover tricks needed
-  const ConvItem = ({ conv, onSelect }: { conv: typeof conversations[0]; onSelect?: () => void }) => (
-    <div
-      className={cn(
-        "w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors mb-1 cursor-pointer",
-        conv.id === conversationId
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:bg-secondary"
-      )}
-      onClick={() => { setConversationId(conv.id); onSelect?.(); }}
-    >
-      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate flex-1 text-left">{conv.title || "New Chat"}</span>
-
-      {/* Delete button — always visible, no hover magic */}
-      <button
-        onClick={(e) => deleteConversation(conv.id, e)}
-        disabled={deletingId === conv.id}
-        title="Delete conversation"
-        className="shrink-0 ml-1 rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+  // Conversation row with hover-revealed delete button (using React state, not CSS hover)
+  const ConvItem = ({ conv, onSelect }: { conv: typeof conversations[0]; onSelect?: () => void }) => {
+    const [hovered, setHovered] = useState(false);
+    return (
+      <div
+        style={{ display: "flex", alignItems: "center", gap: 8, borderRadius: 8, padding: "8px 12px", marginBottom: 4, cursor: "pointer", transition: "background 0.15s",
+          background: conv.id === conversationId ? "hsl(var(--primary) / 0.1)" : hovered ? "hsl(var(--secondary))" : "transparent" }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => { setConversationId(conv.id); onSelect?.(); }}
       >
-        {deletingId === conv.id
-          ? <span className="h-3.5 w-3.5 block animate-spin rounded-full border border-current border-t-transparent" />
-          : <Trash2 className="h-3.5 w-3.5" />
-        }
-      </button>
-    </div>
-  );
+        <MessageSquare style={{ width: 14, height: 14, flexShrink: 0, color: conv.id === conversationId ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 13,
+          color: conv.id === conversationId ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+          {conv.title || "New Chat"}
+        </span>
+
+        {/* Grey bin — visible on hover, red on its own hover */}
+        <button
+          onClick={(e) => confirmAndDelete(conv.id, e)}
+          disabled={deletingId === conv.id}
+          title="Delete chat"
+          style={{ flexShrink: 0, background: "transparent", border: "none", borderRadius: 4, padding: 4, cursor: "pointer",
+            opacity: hovered ? 1 : 0, transition: "opacity 0.15s, color 0.15s",
+            color: "hsl(var(--muted-foreground))", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "hsl(var(--destructive))"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "hsl(var(--muted-foreground))"; }}
+        >
+          {deletingId === conv.id
+            ? <span style={{ width: 14, height: 14, display: "block", borderRadius: "50%", border: "1.5px solid currentColor", borderTopColor: "transparent", animation: "spin 0.6s linear infinite" }} />
+            : <Trash2 style={{ width: 14, height: 14 }} />
+          }
+        </button>
+      </div>
+    );
+  };
 
   return (
+    <>
     <div className="flex h-[calc(100vh-96px)] -mt-6">
 
       {/* ── Desktop sidebar ── */}
@@ -424,7 +439,47 @@ const ChatPage = () => {
 
       </div>
     </div>
-  );
+
+    {/* ── Confirm delete dialog ── */}
+    {confirmDeleteId && (
+      <div
+        onClick={() => setConfirmDeleteId(null)}
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", borderRadius: 12, padding: "28px 24px", maxWidth: 340, width: "100%",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <Trash2 style={{ width: 18, height: 18, color: "hsl(var(--destructive))", flexShrink: 0 }} />
+            <p style={{ fontWeight: 600, fontSize: 15, color: "hsl(var(--foreground))", margin: 0 }}>Delete this chat?</p>
+          </div>
+          <p style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", lineHeight: 1.6, margin: "0 0 20px" }}>
+            This conversation will be permanently deleted. This action cannot be undone.
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button
+              onClick={() => setConfirmDeleteId(null)}
+              style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid hsl(var(--border))", background: "transparent",
+                fontSize: 13, cursor: "pointer", color: "hsl(var(--foreground))" }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => deleteConversation(confirmDeleteId)}
+              style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "hsl(var(--destructive))",
+                color: "hsl(var(--destructive-foreground))", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </>;
 };
 
 export default ChatPage;
