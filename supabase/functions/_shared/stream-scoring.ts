@@ -57,7 +57,7 @@ export const FIELD_LABELS: Record<StreamField, string> = {
   medicine: "Medicine & Allied Health",
   business: "Business, Commerce & Management",
   law: "Law",
-  pure_sciences: "Pure Sciences",
+  pure_sciences: "Science (B.Sc. / Research)",
   arts_humanities: "Arts, Humanities & Social Sciences",
   design_architecture: "Design & Architecture",
   media_performing_arts: "Media, Film & Performing Arts",
