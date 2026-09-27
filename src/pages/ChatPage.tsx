@@ -254,6 +254,10 @@ const ChatPage = () => {
             target_countries: profile.target_countries,
             extracurriculars: profile.extracurriculars,
             extracted_facts: profile.extracted_facts,
+            // Aptitude quiz answers — was being collected but never sent to the
+            // chatbot, so replies ignored it even though Dashboard used it fine.
+            quiz_preferences: (profile as any).quiz_preferences,
+            grade_tier: (profile as any).grade_tier,
           } : null,
           conversationId: convId,
           userId: user.id,
@@ -319,6 +323,11 @@ const ChatPage = () => {
 
       {/* ── Chat area ── */}
       <div className="flex-1 flex flex-col min-w-0">
+
+        {/* TEMPORARY DEBUG BANNER — remove once quiz personalization is confirmed working */}
+        <div className="bg-yellow-100 text-yellow-900 text-xs px-3 py-2 border-b border-yellow-300">
+          DEBUG — quiz_preferences on loaded profile: {profile ? JSON.stringify((profile as any).quiz_preferences ?? "MISSING/UNDEFINED") : "profile itself is null"}
+        </div>
 
         {/* Mobile history bar */}
         <div className="lg:hidden flex items-center justify-between border-b border-border px-3 py-2">
