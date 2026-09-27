@@ -10,6 +10,7 @@ import { Sparkles, ArrowRight, ArrowLeft, CheckCircle2, Loader2 } from "lucide-r
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { deriveGradeTier } from "@/data/universities";
+import { computeStreamScores, type FieldScore } from "@/lib/stream-scoring";
 
 type Question = {
   id: string;
@@ -109,6 +110,46 @@ const QUESTIONS: Question[] = [
   },
 ];
 
+// Deterministic stream recommendation panel — computed by computeStreamScores(),
+// NOT by asking the AI. Same answers always produce the same ranking.
+const StreamFitPanel = ({ answers }: { answers: Record<string, string> }) => {
+  const scores: FieldScore[] = computeStreamScores(answers);
+  const top3 = scores.slice(0, 3);
+  const maxScore = top3[0]?.score || 1;
+
+  return (
+    <Card className="glass-card mb-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="font-heading text-lg flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" /> Your Best-Fit Streams
+        </CardTitle>
+        <CardDescription>Calculated from your answers using a fixed scoring formula — not a guess.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {top3.map((f, i) => (
+          <div key={f.field}>
+            <div className="flex justify-between items-baseline mb-1">
+              <span className="text-sm font-semibold">{i + 1}. {f.label}</span>
+              <span className="text-xs text-muted-foreground">{f.score}/100</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{ width: `${Math.max(6, (f.score / maxScore) * 100)}%` }}
+              />
+            </div>
+            {f.drivers.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Driven by: {f.drivers.map(d => d.signal).join(", ")}
+              </p>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+};
+
 const QuizPage = () => {
   const { profile, loading: profileLoading, updateProfile } = useProfile();
   const navigate = useNavigate();
@@ -145,7 +186,6 @@ const QuizPage = () => {
       toast({ title: "Could not save quiz", variant: "destructive" });
     } else {
       setDone(true);
-      setTimeout(() => navigate("/dashboard"), 1500);
     }
     setSubmitting(false);
   };
@@ -168,6 +208,7 @@ const QuizPage = () => {
             <h1 className="font-heading text-3xl font-bold gradient-text">Aptitude Quiz — Completed ✓</h1>
             <p className="mt-2 text-muted-foreground">Your recommendations are personalised using these answers.</p>
           </div>
+          <StreamFitPanel answers={savedQuiz} />
           <Card className="glass-card mb-4">
             <CardContent className="p-6 space-y-3">
               {QUESTIONS.map(q => (
@@ -194,14 +235,18 @@ const QuizPage = () => {
   if (done) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          <Card className="glass-card max-w-md text-center">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-md">
+          <Card className="glass-card text-center mb-4">
             <CardContent className="p-8">
               <CheckCircle2 className="mx-auto h-16 w-16 text-green-500 mb-4" />
               <h2 className="font-heading text-2xl font-bold mb-2">Quiz Complete!</h2>
-              <p className="text-muted-foreground">Your recommendations are now personalised. Redirecting...</p>
+              <p className="text-muted-foreground">Here's what your answers point to.</p>
             </CardContent>
           </Card>
+          <StreamFitPanel answers={answers} />
+          <Button className="w-full" onClick={() => navigate("/dashboard")}>
+            Go to Dashboard <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
         </motion.div>
       </div>
     );

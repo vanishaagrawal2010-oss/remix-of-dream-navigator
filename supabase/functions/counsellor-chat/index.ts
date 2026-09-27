@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { CAREER_GUIDE_KB } from "../_shared/career-guide-kb.ts";
+import { detectStreamMismatch } from "../_shared/stream-scoring.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,6 +50,24 @@ serve(async (req) => {
         .join("; ");
     }
 
+    // Deterministic stream-fit check — computed by fixed code (stream-scoring.ts),
+    // NOT by asking Gemini to eyeball it. Same profile + quiz always produces the
+    // same verdict. The model's job is to explain this verdict, not to invent one.
+    const mismatch = profile
+      ? detectStreamMismatch(profile.degree_type, profile.stream, profile.quiz_preferences)
+      : null;
+
+    let mismatchContext = "";
+    if (mismatch) {
+      mismatchContext = `
+DETERMINISTIC STREAM-FIT CHECK (computed by code, not by you — treat as ground truth):
+- ${mismatch.note}
+${mismatch.hasMismatch
+  ? `- This IS flagged as a meaningful mismatch. Proactively and gently raise it per the guideline below.`
+  : `- This is NOT flagged as a mismatch. Do not claim there's a conflict between the student's stream and their quiz results.`}
+`;
+    }
+
     let profileContext = "";
     if (profile) {
       profileContext = `
@@ -65,7 +84,7 @@ STUDENT PROFILE:
 - Extracurriculars: ${(profile.extracurriculars || []).join(", ") || "None listed"}
 - Aptitude Quiz Results: ${describeQuiz(profile.quiz_preferences)}
 - Key Facts: ${JSON.stringify(profile.extracted_facts || [])}
-`;
+${mismatchContext}`;
     }
 
     // System instruction passed via systemInstruction field — Gemini treats this
@@ -94,7 +113,7 @@ Additional guidelines:
 - Reference the student's profile when relevant.
 - Actively use the Aptitude Quiz Results (work style, career goal, risk appetite, study intensity) when discussing stream selection, course choice, or college fit — this is the student's actual personalization data, don't ignore it.
 - Keep replies focused and reasonably concise (roughly under 400 words) unless the student explicitly asks for more detail — this avoids overly long responses.
-- IMPORTANT — check for mismatches: compare the student's stated Degree Type/Stream in their profile against what their Aptitude Quiz Results actually suggest (work style, career goal, risk appetite, study intensity). If they meaningfully conflict — e.g. the student has chosen a technical/quantitative path (like B.Tech) but their quiz points to a humanities/social/creative fit, or vice versa — proactively and gently point this out, even if the student didn't ask about it directly. Explain specifically which quiz signals suggest the mismatch, and offer 1-2 concrete alternative or hybrid options (e.g. a related stream, or a course that blends both). Don't be alarmist — frame it as "worth considering" rather than telling them they chose wrong.
+- IMPORTANT — stream-fit mismatches: a DETERMINISTIC STREAM-FIT CHECK is computed for you above (by fixed scoring code, not AI judgment) and is ground truth — never override it with your own read of the quiz. If it says a mismatch IS flagged, proactively and gently raise it (even if unasked): name the field the quiz points to, the driving signals listed, and offer 1-2 concrete alternative or hybrid options. Frame it as "worth considering," not "you chose wrong." If it says NOT flagged, do not manufacture a conflict — say the choice lines up with their quiz results if asked.
 - Be specific — name universities, deadlines, requirements.
 - Be encouraging but realistic.
 - Use markdown for clarity (lists, bold).
