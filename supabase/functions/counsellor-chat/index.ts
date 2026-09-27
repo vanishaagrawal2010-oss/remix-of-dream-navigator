@@ -14,6 +14,41 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
+    // Human-readable labels for the aptitude quiz's raw answer values, so the
+    // model gets meaningful context instead of internal codes like "critical"
+    // or "investigative" with no idea what question they belong to.
+    const QUIZ_LABELS: Record<string, { question: string; options: Record<string, string> }> = {
+      fees_priority: { question: "Tuition-fee sensitivity", options: {
+        critical: "needs low-cost colleges only", important: "prefers affordable but flexible", neutral: "fully funded, cost is not a factor" } },
+      city_type: { question: "Preferred city type", options: {
+        metro: "big metro city", tier2: "mid-size city", small: "small town", any: "no preference" } },
+      campus_type: { question: "Preferred campus style", options: {
+        Sprawling: "large green campus", Modern: "modern tech-forward campus", Urban: "urban/city-integrated campus", Compact: "compact close-knit campus" } },
+      hostel_priority: { question: "Hostel importance", options: {
+        critical: "needs excellent hostel facilities", important: "wants decent hostel", neutral: "will live off-campus/locally" } },
+      work_style: { question: "Natural work/learning style", options: {
+        investigative: "analytical, enjoys solving complex problems", realistic: "hands-on, learns by building", artistic: "creative, expresses ideas visually/in writing",
+        social: "social, thrives helping/teaching others", enterprising: "enterprising, enjoys leading/business", conventional: "structured, detail-oriented" } },
+      career_goal: { question: "Primary career goal", options: {
+        research: "research/academia/PhD path", industry: "high-paying industry job", startup: "wants to build own startup",
+        stable: "wants stable government/public role", social_impact: "wants social impact/NGO/public service work" } },
+      risk_appetite: { question: "Risk appetite", options: {
+        high: "loves risk, open to switching fields", medium: "calculated risks, stays flexible", low: "prefers a clear predictable roadmap" } },
+      study_intensity: { question: "Desired study intensity", options: {
+        intense: "wants to be pushed to the limit academically", balanced: "wants academics + extracurriculars balance", relaxed: "wants a relaxed, low-stress college life" } },
+    };
+
+    function describeQuiz(quiz: Record<string, string> | undefined | null): string {
+      if (!quiz || Object.keys(quiz).length === 0) return "Not taken yet — if relevant, suggest the student take the aptitude quiz.";
+      return Object.entries(quiz)
+        .map(([id, value]) => {
+          const meta = QUIZ_LABELS[id];
+          if (!meta) return `${id}: ${value}`;
+          return `${meta.question}: ${meta.options[value] || value}`;
+        })
+        .join("; ");
+    }
+
     let profileContext = "";
     if (profile) {
       profileContext = `
@@ -21,12 +56,14 @@ STUDENT PROFILE:
 - Name: ${profile.name || "Not provided"}
 - School: ${profile.school || "Not provided"}
 - Grades: ${profile.grades || "Not provided"}
+- Grade tier: ${profile.grade_tier || "Not determined"}
 - Degree Type: ${profile.degree_type || "Not specified"}
 - Stream: ${profile.stream || "Not specified"}
 - Interests: ${(profile.interests || []).join(", ") || "Not specified"}
 - Budget: ${profile.budget || "Not specified"}
 - Target Countries: ${(profile.target_countries || []).join(", ") || "Not specified"}
 - Extracurriculars: ${(profile.extracurriculars || []).join(", ") || "None listed"}
+- Aptitude Quiz Results: ${describeQuiz(profile.quiz_preferences)}
 - Key Facts: ${JSON.stringify(profile.extracted_facts || [])}
 `;
     }
@@ -55,6 +92,8 @@ ${profileContext}
 
 Additional guidelines:
 - Reference the student's profile when relevant.
+- Actively use the Aptitude Quiz Results (work style, career goal, risk appetite, study intensity) when discussing stream selection, course choice, or college fit — this is the student's actual personalization data, don't ignore it.
+- Keep replies focused and reasonably concise (roughly under 400 words) unless the student explicitly asks for more detail — this avoids overly long responses.
 - Be specific — name universities, deadlines, requirements.
 - Be encouraging but realistic.
 - Use markdown for clarity (lists, bold).
@@ -86,7 +125,7 @@ Only include genuinely new facts not already in their profile. Omit the block en
           contents,
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1500,
+            maxOutputTokens: 4096,
           },
         }),
       }

@@ -324,11 +324,6 @@ const ChatPage = () => {
       {/* ── Chat area ── */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* TEMPORARY DEBUG BANNER — remove once quiz personalization is confirmed working */}
-        <div className="bg-yellow-100 text-yellow-900 text-xs px-3 py-2 border-b border-yellow-300">
-          DEBUG — quiz_preferences on loaded profile: {profile ? JSON.stringify((profile as any).quiz_preferences ?? "MISSING/UNDEFINED") : "profile itself is null"}
-        </div>
-
         {/* Mobile history bar */}
         <div className="lg:hidden flex items-center justify-between border-b border-border px-3 py-2">
           <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
