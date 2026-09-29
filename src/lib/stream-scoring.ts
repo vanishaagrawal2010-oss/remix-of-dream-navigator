@@ -22,14 +22,19 @@ export type WorkStyle = "investigative" | "realistic" | "artistic" | "social" | 
 export type CareerGoal = "research" | "industry" | "startup" | "stable" | "social_impact";
 export type RiskAppetite = "high" | "medium" | "low";
 export type StudyIntensity = "intense" | "balanced" | "relaxed";
+export type FeesPriority = "critical" | "important" | "neutral";
 
 export type QuizAnswers = Partial<{
   work_style: WorkStyle;
   career_goal: CareerGoal;
   risk_appetite: RiskAppetite;
   study_intensity: StudyIntensity;
-  // other quiz fields (fees_priority, city_type, campus_type, hostel_priority)
-  // exist too but don't drive stream fit — they drive college fit instead.
+  // fees_priority DOES drive stream fit now (see INDIA_FEASIBILITY below) —
+  // it's not just a college filter, because in India some streams are
+  // structurally unaffordable on a tight budget regardless of which
+  // college you pick. city_type/campus_type/hostel_priority still only
+  // drive college fit, not stream fit.
+  fees_priority: FeesPriority;
   [key: string]: string | undefined;
 }>;
 
@@ -155,14 +160,87 @@ const FIELD_RUBRIC: Record<StreamField, Rubric> = {
   },
 };
 
+// ---- INDIA FEE-REALITY CHECK ---------------------------------------------
+// A student's interest-fit score is only half the story in India: some
+// streams are structurally out of reach on a tight budget no matter which
+// college you pick, because government seats are scarce/hyper-competitive
+// and private fees are steep. This is general, stable knowledge about how
+// Indian higher-ed admissions work (NEET/JEE/CLAT scarcity, typical private
+// fee ranges) — not something that should be left to the AI to "remember"
+// inconsistently. costScore is 0 (cheap & accessible) to 1 (very
+// expensive & scarce govt seats).
+const INDIA_FEASIBILITY: Record<StreamField, { costScore: number; note: string }> = {
+  medicine: {
+    costScore: 1.0,
+    note: "In India, government MBBS seats are extremely limited and need a top-percentile NEET rank; private MBBS fees are among the highest of any stream, commonly running into tens of lakhs to over a crore for the full course. On a tight budget without an excellent NEET score, this stream is genuinely very hard to access.",
+  },
+  design_architecture: {
+    costScore: 0.65,
+    note: "Government design/architecture institutes (like NID, NIFT, SPA) are reasonably priced but entrance exams are tough and seats few; most other design/architecture colleges in India are private and expensive.",
+  },
+  cs_it: {
+    costScore: 0.55,
+    note: "CS/IT is the most oversubscribed branch even within affordable government engineering colleges, needing a very high JEE/state-CET rank; private colleges often charge more for CS/IT than for other branches.",
+  },
+  media_performing_arts: {
+    costScore: 0.55,
+    note: "A few government options (like FTII or mass-communication departments in central universities) are affordable but have very few seats; most private media/film schools in India charge high fees.",
+  },
+  law: {
+    costScore: 0.5,
+    note: "National Law Universities (via CLAT) are relatively affordable but highly competitive to get into; many private law colleges are costly.",
+  },
+  engineering: {
+    costScore: 0.35,
+    note: "Government engineering colleges (IITs/NITs/state colleges via JEE or state CETs) are affordable but competitive; private engineering fees range widely from moderate to very high.",
+  },
+  social_work: {
+    costScore: 0.25,
+    note: "Generally affordable in India, with several government-funded or subsidised options.",
+  },
+  business: {
+    costScore: 0.2,
+    note: "Plenty of affordable government/state BCom & BBA colleges exist in India; costs rise mainly if targeting top private business schools.",
+  },
+  education: {
+    costScore: 0.15,
+    note: "Government/state B.Ed colleges are inexpensive and widely available across India.",
+  },
+  pure_sciences: {
+    costScore: 0.1,
+    note: "One of the most affordable and accessible streams in India — most state/government colleges offer B.Sc at low fees with comparatively easier admission than engineering or medicine.",
+  },
+  arts_humanities: {
+    costScore: 0.1,
+    note: "Among the cheapest and most widely available streams in India — government/state BA colleges are low-cost with comparatively easy admission.",
+  },
+};
+
+/**
+ * How much a field's raw interest-fit score gets discounted for India's
+ * fee/seat realities, given how much the student cares about low fees.
+ * "critical" (I need affordable, full stop) discounts hard; "important"
+ * discounts moderately; "neutral" (fully funded) applies no discount at
+ * all, since cost genuinely isn't a constraint for that student.
+ */
+function feasibilityMultiplier(field: StreamField, feesPriority?: FeesPriority): number {
+  if (!feesPriority || feesPriority === "neutral") return 1;
+  const { costScore } = INDIA_FEASIBILITY[field];
+  const strength = feesPriority === "critical" ? 0.65 : 0.3;
+  return 1 - costScore * strength;
+}
+
 // ---- Core scoring function ----------------------------------------------
 
 export type FieldScore = {
   field: StreamField;
   label: string;
-  score: number; // 0-100, rounded
+  score: number; // 0-100, rounded, AFTER the India fee-reality discount
+  interestScore: number; // 0-100, BEFORE the fee-reality discount — pure interest fit
   // which quiz answers contributed and how much, for transparent explanations
   drivers: { signal: string; contribution: number }[];
+  // set when fees_priority meaningfully discounted this field's score
+  feasibilityNote?: string;
 };
 
 /**
@@ -203,8 +281,21 @@ export function computeStreamScores(answers: QuizAnswers): FieldScore[] {
       if (w >= 7) drivers.push({ signal: `study intensity: ${answers.study_intensity}`, contribution: Math.round(w) });
     }
 
-    const score = maxPossible > 0 ? Math.round((achieved / maxPossible) * 100) : 0;
-    return { field, label: FIELD_LABELS[field], score, drivers: drivers.sort((a, b) => b.contribution - a.contribution) };
+    const interestScore = maxPossible > 0 ? Math.round((achieved / maxPossible) * 100) : 0;
+    const multiplier = feasibilityMultiplier(field, answers.fees_priority);
+    const score = Math.round(interestScore * multiplier);
+    // Only surface the note when the discount is big enough to actually
+    // change the picture (a token 2-3 point dip isn't worth flagging).
+    const feasibilityNote = multiplier <= 0.8 ? INDIA_FEASIBILITY[field].note : undefined;
+
+    return {
+      field,
+      label: FIELD_LABELS[field],
+      score,
+      interestScore,
+      drivers: drivers.sort((a, b) => b.contribution - a.contribution),
+      feasibilityNote,
+    };
   });
 
   return results.sort((a, b) => b.score - a.score);
@@ -254,6 +345,11 @@ export function fieldForPreference(degree: string, stream: string): StreamField 
 
 export type MismatchResult = {
   hasMismatch: boolean;
+  // true when the CHOSEN field has a flagged India fee-reality problem
+  // given this student's fees_priority — independent of interest fit.
+  // A student can be a great interest match for Medicine and still be
+  // budget-blocked from it; this is what catches that case.
+  hasFeasibilityConcern: boolean;
   chosenField: StreamField | null;
   chosenFieldLabel: string | null;
   chosenScore: number | null;
@@ -294,6 +390,7 @@ export function detectStreamMismatch(
   if (!chosenField || !chosenScoreEntry) {
     return {
       hasMismatch: false,
+      hasFeasibilityConcern: false,
       chosenField: null,
       chosenFieldLabel: null,
       chosenScore: null,
@@ -308,12 +405,21 @@ export function detectStreamMismatch(
   const gap = top.score - chosenScoreEntry.score;
   const hasMismatch = chosenField !== top.field && (!top3.has(chosenField) || gap >= 25);
 
-  const note = hasMismatch
+  let note = hasMismatch
     ? `Chosen path (${FIELD_LABELS[chosenField]}, quiz-fit score ${chosenScoreEntry.score}/100) diverges from what the quiz points to most strongly: ${top.label} (score ${top.score}/100), driven by ${top.drivers.map((d) => d.signal).join(", ") || "overall profile"}.`
     : `Chosen path (${FIELD_LABELS[chosenField]}, quiz-fit score ${chosenScoreEntry.score}/100) is consistent with the quiz.`;
 
+  // If the CHOSEN field has a real India fee-reality problem given this
+  // student's budget priority, that's worth flagging even when there's no
+  // interest mismatch — a student can be a great fit for Medicine and
+  // still be budget-blocked from it.
+  if (chosenScoreEntry.feasibilityNote) {
+    note += ` India fee-reality check: ${chosenScoreEntry.feasibilityNote}`;
+  }
+
   return {
     hasMismatch,
+    hasFeasibilityConcern: Boolean(chosenScoreEntry.feasibilityNote),
     chosenField,
     chosenFieldLabel: FIELD_LABELS[chosenField],
     chosenScore: chosenScoreEntry.score,

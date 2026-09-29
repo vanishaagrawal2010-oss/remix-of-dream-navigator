@@ -143,6 +143,12 @@ const StreamFitPanel = ({ answers }: { answers: Record<string, string> }) => {
                 Driven by: {f.drivers.map(d => d.signal).join(", ")}
               </p>
             )}
+            {f.feasibilityNote && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex gap-1">
+                <span aria-hidden>⚠️</span>
+                <span>{f.feasibilityNote}</span>
+              </p>
+            )}
           </div>
         ))}
       </CardContent>

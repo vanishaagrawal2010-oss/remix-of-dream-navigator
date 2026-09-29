@@ -66,8 +66,11 @@ Deno.serve(async (req) => {
 DETERMINISTIC STREAM-FIT CHECK (computed by code, not by you — treat as ground truth):
 - ${mismatch.note}
 ${mismatch.hasMismatch
-  ? `- This IS flagged as a meaningful mismatch. Proactively and gently raise it per the guideline below.`
-  : `- This is NOT flagged as a mismatch. Do not claim there's a conflict between the student's stream and their quiz results.`}
+  ? `- This IS flagged as a meaningful interest mismatch. Proactively and gently raise it per the guideline below.`
+  : `- This is NOT flagged as an interest mismatch. Do not claim there's an interest conflict between the student's stream and their quiz results.`}
+${mismatch.hasFeasibilityConcern
+  ? `- India fee-reality FLAG: the note above already explains why. Even if there's no interest mismatch, proactively mention this budget reality gently — don't let a student assume a costly/scarce-seat path is easy just because it fits their interests.`
+  : ``}
 `;
     }
 
