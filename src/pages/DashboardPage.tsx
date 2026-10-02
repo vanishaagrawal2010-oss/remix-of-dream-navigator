@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,9 @@ import { GraduationCap, MapPin, DollarSign, Calendar, ExternalLink, MessageSquar
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { ALL_UNIS, deriveGradeTier, getPreference, type University } from "@/data/universities";
 import { computeRecommendations, type Recommendation } from "@/lib/recommend";
+import { useColleges } from "@/lib/colleges";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Users } from "lucide-react";
 
 type NewsItem = {
   title: string;
@@ -79,7 +82,7 @@ const fitColor = (f: string) =>
   : f === "Stretch" ? "bg-orange-100 text-orange-700 border-orange-200"
   : "bg-blue-100 text-blue-700 border-blue-200";
 
-const SwipeCard = ({ uni, onSwipe }: { uni: Recommendation; onSwipe: (dir: "left" | "right") => void }) => {
+const SwipeCard = ({ uni, onSwipe, onInsights }: { uni: Recommendation; onSwipe: (dir: "left" | "right") => void; onInsights: () => void }) => {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
@@ -144,7 +147,7 @@ const SwipeCard = ({ uni, onSwipe }: { uni: Recommendation; onSwipe: (dir: "left
             </div>
             <div className="rounded-lg bg-secondary p-3">
               <p className="text-xs text-muted-foreground mb-1">QS Ranking</p>
-              <p className="text-sm font-semibold">#{uni.ranking}</p>
+              <p className="text-sm font-semibold">{uni.ranking >= 9999 ? "Not ranked" : `#${uni.ranking}`}</p>
             </div>
             <div className="rounded-lg bg-secondary p-3">
               <p className="text-xs text-muted-foreground mb-1">Hostel</p>
@@ -164,6 +167,14 @@ const SwipeCard = ({ uni, onSwipe }: { uni: Recommendation; onSwipe: (dir: "left
               </Button>
             </a>
           </div>
+
+          <Button
+            variant="secondary" size="sm" className="mt-2 w-full gap-2"
+            onPointerDownCapture={(e) => e.stopPropagation()}
+            onClick={onInsights}
+          >
+            <Users className="h-3.5 w-3.5" /> What students say
+          </Button>
 
           <motion.div className="absolute top-6 right-6 bg-green-500 text-white px-4 py-2 rounded-xl font-heading font-bold text-lg rotate-12 border-2 border-green-600" style={{ opacity: likeOpacity }}>
             LIKE ✓
@@ -204,8 +215,54 @@ const DashboardPage = () => {
   }, [user]);
 
   // Run the personalisation engine whenever profile changes
-  const recResult = useMemo(() => computeRecommendations(profile), [profile]);
+  const { pool, loading: collegesLoading, reload: reloadColleges } = useColleges();
+  const recResult = useMemo(() => computeRecommendations(profile, pool), [profile, pool]);
   const recommendations = recResult.items;
+
+  // ===== Grow the college list when this student has too few matches =====
+  const [finding, setFinding] = useState(false);
+  const discoveryDone = useRef("");
+  useEffect(() => {
+    if (!user || !profile || collegesLoading || finding) return;
+    if (recResult.poolSize >= 30) return; // already plenty to choose from
+    const prefs = [(profile as any).stream_pref_1, (profile as any).stream_pref_2, (profile as any).stream_pref_3]
+      .map((v: string) => getPreference(v)).filter(Boolean).slice(0, 2);
+    if (prefs.length === 0) return;
+    const signature = JSON.stringify([recResult.countriesUsed, prefs.map(p => p!.value)]);
+    if (discoveryDone.current === signature) return;
+    discoveryDone.current = signature;
+
+    const pairs: { country: string; degree: string; stream: string }[] = [];
+    for (const c of recResult.countriesUsed.slice(0, 2))
+      for (const p of prefs) pairs.push({ country: c, degree: p!.degree, stream: p!.stream });
+
+    (async () => {
+      setFinding(true);
+      for (const pair of pairs.slice(0, 4)) {
+        const existing = pool.filter(u => u.country === pair.country && u.stream.toLowerCase() === pair.stream.toLowerCase()).map(u => u.name);
+        await supabase.functions.invoke("discover-colleges", {
+          body: { ...pair, budget: (profile as any).budget || undefined, existing },
+        });
+      }
+      await reloadColleges();
+      setFinding(false);
+    })();
+  }, [user, profile, collegesLoading, recResult, finding, pool, reloadColleges]);
+
+  // ===== "What students say" panel =====
+  const [insightsFor, setInsightsFor] = useState<Recommendation | null>(null);
+  const [insights, setInsights] = useState<any>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState("");
+  const openInsights = async (u: Recommendation) => {
+    setInsightsFor(u); setInsights(null); setInsightsError(""); setInsightsLoading(true);
+    const { data, error } = await supabase.functions.invoke("college-insights", {
+      body: { name: u.name, country: u.country, degree: u.degree, stream: u.stream },
+    });
+    if (error || !data || data.error) setInsightsError("We could not load student opinions right now. Please try again in a moment.");
+    else setInsights(data);
+    setInsightsLoading(false);
+  };
 
   const unswiped = recommendations.filter(u => !swiped.has(u.name));
 
@@ -331,6 +388,11 @@ const DashboardPage = () => {
             <Heart className="h-5 w-5 text-primary" /> Discover Universities
             <Badge variant="secondary" className="ml-auto text-xs">{unswiped.length} remaining</Badge>
           </h2>
+          {finding && (
+            <p className="mb-3 text-xs rounded-lg bg-primary/10 text-primary p-3 flex items-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Finding more colleges that fit you. This takes a minute the first time.
+            </p>
+          )}
           {hasAnyPref && recResult.defaultedToIndia && (
             <p className="mb-3 text-xs rounded-lg bg-secondary/60 p-3">
               You have not picked a target country yet, so we are showing colleges in India. <Link to="/profile" className="underline text-primary">Choose your countries</Link> to see others.
@@ -389,7 +451,7 @@ const DashboardPage = () => {
                       animate={{ scale: 1 - i * 0.03, y: i * 8 }}
                     >
                       {i === 0 ? (
-                        <SwipeCard uni={uni} onSwipe={(dir) => handleSwipe(uni, dir)} />
+                        <SwipeCard uni={uni} onSwipe={(dir) => handleSwipe(uni, dir)} onInsights={() => openInsights(uni)} />
                       ) : (
                         <Card className="h-full glass-card opacity-60">
                           <div className="h-2 w-full bg-muted" />
@@ -493,6 +555,70 @@ const DashboardPage = () => {
           </div>
         </div>
       )}
+
+      <Dialog open={!!insightsFor} onOpenChange={(o) => { if (!o) setInsightsFor(null); }}>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading">What students say about {insightsFor?.name}</DialogTitle>
+          </DialogHeader>
+          {insightsLoading && (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin" />
+              Reading student discussions. This can take up to 20 seconds the first time.
+            </div>
+          )}
+          {insightsError && <p className="text-sm text-destructive">{insightsError}</p>}
+          {insights?.summary && (() => {
+            const s = insights.summary;
+            const rows: [string, string][] = [
+              ["Hostel", s.hostel], ["Food", s.food], ["Campus life", s.campus_life],
+              ["Academics", s.academics], ["Placements", s.placements],
+              ["Safety and support", s.safety_and_support], ["Value for money", s.value_for_money],
+            ];
+            return (
+              <div className="space-y-4 text-sm">
+                <p className="leading-relaxed">{s.overview}</p>
+                {s.confidence === "low" && (
+                  <p className="text-xs rounded-lg bg-yellow-50 text-yellow-800 p-2">Not much is written about this college online, so treat this summary with extra care.</p>
+                )}
+                <div className="grid gap-3">
+                  {rows.filter(([, v]) => v).map(([k, v]) => (
+                    <div key={k} className="rounded-lg bg-secondary p-3">
+                      <p className="label-mono text-[10px] text-muted-foreground mb-1">{k}</p>
+                      <p>{v}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-green-50 p-3">
+                    <p className="font-semibold text-green-800 mb-1">Students like</p>
+                    <ul className="list-disc pl-4 space-y-1 text-green-900">{(s.pros || []).map((p: string) => <li key={p}>{p}</li>)}</ul>
+                  </div>
+                  <div className="rounded-lg bg-red-50 p-3">
+                    <p className="font-semibold text-red-800 mb-1">Students complain about</p>
+                    <ul className="list-disc pl-4 space-y-1 text-red-900">{(s.cons || []).map((p: string) => <li key={p}>{p}</li>)}</ul>
+                  </div>
+                </div>
+                {s.best_for && <p><strong>Best for:</strong> {s.best_for}</p>}
+                {s.think_twice_if && <p><strong>Think twice if:</strong> {s.think_twice_if}</p>}
+                {insights.sources?.length > 0 && (
+                  <div>
+                    <p className="label-mono text-[10px] text-muted-foreground mb-1">Where this comes from</p>
+                    <div className="flex flex-wrap gap-2">
+                      {insights.sources.map((src: any) => (
+                        <a key={src.url} href={src.url} target="_blank" rel="noopener noreferrer" className="text-xs underline text-primary">{src.title || "Source"}</a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  An AI summary of public student discussions, not an official statement from the college. Always visit the campus or talk to current students before deciding.
+                </p>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

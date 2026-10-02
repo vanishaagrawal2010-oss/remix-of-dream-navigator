@@ -138,7 +138,7 @@ const SMALL_TOWN = /pilani|kharagpur|warangal|roorkee|guwahati|manipal|vellore|p
 
 // ───────────────────────── the engine ─────────────────────────
 
-export const computeRecommendations = (profile: any): RecommendationResult => {
+export const computeRecommendations = (profile: any, pool: University[] = ALL_UNIS): RecommendationResult => {
   const empty: RecommendationResult = {
     items: [], countriesUsed: [], defaultedToIndia: false, missingCountries: [], poolSize: 0,
   };
@@ -151,7 +151,7 @@ export const computeRecommendations = (profile: any): RecommendationResult => {
     countries = ["India"]; // safer than showing every country in the world
     defaultedToIndia = true;
   }
-  const available = new Set(ALL_UNIS.map(u => u.country));
+  const available = new Set(pool.map(u => u.country));
   const missingCountries = countries.filter(c => !available.has(c));
 
   const quiz = (profile.quiz_preferences || {}) as Record<string, string>;
@@ -202,7 +202,7 @@ export const computeRecommendations = (profile: any): RecommendationResult => {
   const scored: Recommendation[] = [];
   let poolSize = 0;
 
-  for (const u of ALL_UNIS) {
+  for (const u of pool) {
     // HARD RULE 1: only countries the student chose
     if (!countries.includes(u.country)) continue;
 
@@ -315,6 +315,12 @@ export const computeRecommendations = (profile: any): RecommendationResult => {
 
   scored.sort((a, b) => b.match - a.match);
 
+  // The same college can appear once per course. Keep only its best entry.
+  const bestByName = new Map<string, Recommendation>();
+  for (const r of scored) if (!bestByName.has(r.name)) bestByName.set(r.name, r);
+  scored.length = 0;
+  bestByName.forEach(r => scored.push(r));
+
   // ── Build a list of ~20 with variety (safe + match + stretch) ────────
   const picked = new Set<string>();
   const final: Recommendation[] = [];
@@ -329,5 +335,5 @@ export const computeRecommendations = (profile: any): RecommendationResult => {
 
   final.sort((a, b) => b.match - a.match);
 
-  return { items: final, countriesUsed: countries, defaultedToIndia, missingCountries, poolSize };
+  return { items: final, countriesUsed: countries, defaultedToIndia, missingCountries, poolSize: scored.length };
 };
