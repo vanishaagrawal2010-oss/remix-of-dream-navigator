@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ALL_UNIS, type University } from "@/data/universities";
 
-const rowToUni = (r: any): University => ({
+const rowToUni = (r: any): University & { tuitionINR?: number } => ({
   name: r.name,
   country: r.country,
   program: r.program || r.stream || r.degree,
@@ -19,6 +19,7 @@ const rowToUni = (r: any): University => ({
   city: r.city || undefined,
   hostel: r.hostel || undefined,
   campus: r.campus || undefined,
+  tuitionINR: r.tuition_inr ? Number(r.tuition_inr) : undefined,
 });
 
 const keyOf = (u: University) => `${u.name}|${u.country}|${u.degree}|${u.stream}`.toLowerCase();

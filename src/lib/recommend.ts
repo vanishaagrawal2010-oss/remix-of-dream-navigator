@@ -119,6 +119,9 @@ const parseAmount = (s: string): number | null => {
 };
 
 const tuitionInINR = (u: University): number | null => {
+  // Colleges from the database carry a ready-made rupee figure
+  const ready = (u as University & { tuitionINR?: number }).tuitionINR;
+  if (typeof ready === "number" && ready > 0) return ready;
   const n = parseAmount(u.tuition);
   if (n === null) return null;
   const cur = detectCurrency(u.tuition) || COUNTRY_CURRENCY[u.country] || "USD";

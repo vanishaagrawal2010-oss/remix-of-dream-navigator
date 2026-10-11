@@ -12,7 +12,13 @@ import { GraduationCap, Loader2, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { STUDY_PREFERENCES, deriveGradeTier } from "@/data/universities";
 
-const COUNTRY_OPTIONS = ["USA", "UK", "Canada", "Australia", "Germany", "Netherlands", "Singapore", "Japan", "France", "Switzerland", "India"];
+const COUNTRY_OPTIONS = [
+  "India", "USA", "UK", "Canada", "Australia", "New Zealand", "Ireland",
+  "Germany", "Netherlands", "France", "Italy", "Spain", "Sweden", "Finland", "Denmark", "Norway",
+  "Switzerland", "Austria", "Poland",
+  "Singapore", "Malaysia", "UAE", "Japan", "South Korea", "Hong Kong", "China",
+  "Russia", "Georgia", "Kazakhstan", "Uzbekistan", "Philippines",
+];
 const CLASS_OPTIONS = ["Class 9", "Class 10", "Class 11", "Class 12", "Gap Year", "1st Year UG", "2nd Year UG", "3rd Year UG", "Final Year UG", "Postgrad"];
 
 const ProfilePage = () => {

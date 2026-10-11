@@ -50,22 +50,24 @@ Deno.serve(async (req) => {
 
     const known = Array.isArray(existing) ? existing.slice(0, 60).join("; ") : "";
 
-    const prompt = `You are building a college database for Indian students. Use Google Search to find REAL, currently operating institutions.
+    const prompt = `You are building a college database for students, many of them from India. Use Google Search to find REAL, currently operating institutions.
 
-TASK: List up to 25 colleges/universities in ${country} that offer ${degree} in ${stream}.
+TASK: List 30 colleges/universities in ${country} that offer ${degree} in ${stream}.
 
-MIX (very important, do not only list famous names):
-- about 5 top-ranked / highly selective options
-- about 8 solid mid-tier options
-- about 6 affordable or easy-to-enter options
-- about 6 lesser-known, niche or unconventional institutions that are genuinely good for this field (specialised institutes, newer universities, state universities, polytechnic-linked colleges, etc.)
-${budget ? `The student's budget is about ${budget} per year, so include several options within it.` : ""}
+The list must work for EVERY kind of student, so spread it like this:
+- 6 highly selective / top-ranked options (difficulty "Very Hard" or "Hard")
+- 8 mid-level options (difficulty "Moderate")
+- 9 easy-to-enter options with low cut-offs or open admission, suitable for students with weak grades (difficulty "Easy")
+- 7 lesser-known, niche or unconventional institutions that are genuinely good for this field (specialised institutes, newer or regional universities, state or private universities, colleges abroad that are popular with Indian students)
+Also spread the fees: include government or very low-cost options, mid-priced options, and premium options.
+${budget ? `The student's budget is about ${budget} per year, so make sure several options fit within it.` : ""}
 ${known ? `Do NOT repeat these, we already have them: ${known}` : ""}
 
 RULES:
 - Only include institutions you are confident exist. Never invent a college.
 - "website" must be the official homepage of the institution (https://...). If unsure, use null.
 - "tuition_text" is the approximate yearly tuition in local currency with a currency symbol, like "₹1,50,000/yr", "$30,000/yr", "£18,000/yr", "€1,500/yr". If unknown use null.
+- "tuition_inr_per_year" is the same tuition converted to Indian rupees as a plain number (for example 150000), or null if unknown.
 - "difficulty" must be one of: ${DIFFICULTY.join(", ")}.
 - "hostel" must be one of: ${HOSTEL.join(", ")}. Use "Limited" if there is little or no hostel.
 - "campus" must be one of: ${CAMPUS.join(", ")}.
@@ -75,7 +77,7 @@ RULES:
 - "college_type": one of Government, Private, Deemed, Autonomous, Public university, Private university, Specialised institute.
 
 Reply with ONLY a JSON array, no other text. Each item:
-{"name":"","city":"","state":"","college_type":"","tuition_text":"","acceptance_rate":"","difficulty":"","ranking":0,"hostel":"","campus":"","deadline":"","website":"","entrance_exams":""}`;
+{"name":"","city":"","state":"","college_type":"","tuition_text":"","tuition_inr_per_year":0,"acceptance_rate":"","difficulty":"","ranking":0,"hostel":"","campus":"","deadline":"","website":"","entrance_exams":""}`;
 
     const { text } = await askGemini(prompt);
     const parsed = parseJson(text);
@@ -86,7 +88,7 @@ Reply with ONLY a JSON array, no other text. Each item:
     const cleaned = await Promise.all(
       list
         .filter((c) => c && typeof c.name === "string" && c.name.trim().length > 2)
-        .slice(0, 30)
+        .slice(0, 40)
         .map(async (c) => {
           const website = typeof c.website === "string" && (await linkWorks(c.website)) ? c.website : null;
           const name = c.name.trim();
@@ -100,6 +102,8 @@ Reply with ONLY a JSON array, no other text. Each item:
             degree,
             stream,
             tuition_text: typeof c.tuition_text === "string" && /\d/.test(c.tuition_text) ? c.tuition_text : null,
+            tuition_inr: Number.isFinite(Number(c.tuition_inr_per_year)) && Number(c.tuition_inr_per_year) > 0
+              ? Math.round(Number(c.tuition_inr_per_year)) : null,
             acceptance_rate: c.acceptance_rate ? String(c.acceptance_rate) : null,
             difficulty: DIFFICULTY.includes(c.difficulty) ? c.difficulty : "Moderate",
             ranking: Number.isFinite(Number(c.ranking)) && Number(c.ranking) > 0 ? Math.round(Number(c.ranking)) : null,

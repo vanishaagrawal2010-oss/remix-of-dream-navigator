@@ -11,8 +11,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-mo
 import { ALL_UNIS, deriveGradeTier, getPreference, type University } from "@/data/universities";
 import { computeRecommendations, type Recommendation } from "@/lib/recommend";
 import { useColleges } from "@/lib/colleges";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Users } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 type NewsItem = {
   title: string;
@@ -77,12 +76,7 @@ const difficultyColor = (d: string) => {
 
 const googleSearch = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
 
-const fitColor = (f: string) =>
-  f === "Safe" ? "bg-green-100 text-green-700 border-green-200"
-  : f === "Stretch" ? "bg-orange-100 text-orange-700 border-orange-200"
-  : "bg-blue-100 text-blue-700 border-blue-200";
-
-const SwipeCard = ({ uni, onSwipe, onInsights }: { uni: Recommendation; onSwipe: (dir: "left" | "right") => void; onInsights: () => void }) => {
+const SwipeCard = ({ uni, onSwipe }: { uni: Recommendation; onSwipe: (dir: "left" | "right") => void }) => {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
@@ -124,7 +118,6 @@ const SwipeCard = ({ uni, onSwipe, onInsights }: { uni: Recommendation; onSwipe:
             </div>
             <div className="flex flex-col items-end gap-1">
               <Badge className="text-xs bg-primary/10 text-primary border-primary/20">{uni.match}% match</Badge>
-              <Badge variant="outline" className={`text-[10px] ${fitColor(uni.fit)}`}>{uni.fit}</Badge>
             </div>
           </div>
 
@@ -167,14 +160,6 @@ const SwipeCard = ({ uni, onSwipe, onInsights }: { uni: Recommendation; onSwipe:
               </Button>
             </a>
           </div>
-
-          <Button
-            variant="secondary" size="sm" className="mt-2 w-full gap-2"
-            onPointerDownCapture={(e) => e.stopPropagation()}
-            onClick={onInsights}
-          >
-            <Users className="h-3.5 w-3.5" /> What students say
-          </Button>
 
           <motion.div className="absolute top-6 right-6 bg-green-500 text-white px-4 py-2 rounded-xl font-heading font-bold text-lg rotate-12 border-2 border-green-600" style={{ opacity: likeOpacity }}>
             LIKE ✓
@@ -219,50 +204,53 @@ const DashboardPage = () => {
   const recResult = useMemo(() => computeRecommendations(profile, pool), [profile, pool]);
   const recommendations = recResult.items;
 
-  // ===== Grow the college list when this student has too few matches =====
+  // ===== Grow the college list: one search per (country + course) that is short =====
   const [finding, setFinding] = useState(false);
   const discoveryDone = useRef("");
   useEffect(() => {
-    if (!user || !profile || collegesLoading || finding) return;
-    if (recResult.poolSize >= 30) return; // already plenty to choose from
+    if (!user || !profile || collegesLoading) return;
     const prefs = [(profile as any).stream_pref_1, (profile as any).stream_pref_2, (profile as any).stream_pref_3]
-      .map((v: string) => getPreference(v)).filter(Boolean).slice(0, 2);
+      .map((v: string) => getPreference(v)).filter(Boolean) as NonNullable<ReturnType<typeof getPreference>>[];
     if (prefs.length === 0) return;
-    const signature = JSON.stringify([recResult.countriesUsed, prefs.map(p => p!.value)]);
+    const countries = recResult.countriesUsed.slice(0, 6);
+    const signature = JSON.stringify([countries, prefs.map(p => p.value)]);
     if (discoveryDone.current === signature) return;
     discoveryDone.current = signature;
 
-    const pairs: { country: string; degree: string; stream: string }[] = [];
-    for (const c of recResult.countriesUsed.slice(0, 2))
-      for (const p of prefs) pairs.push({ country: c, degree: p!.degree, stream: p!.stream });
+    // Which (country, course) pairs have fewer than 15 colleges saved?
+    const MIN_PER_PAIR = 15;
+    const pairs: { country: string; degree: string; stream: string; existing: string[] }[] = [];
+    for (const p of prefs) {
+      for (const c of countries) {
+        const have = pool.filter(u =>
+          u.country === c &&
+          u.degree.toLowerCase() === p.degree.toLowerCase() &&
+          u.stream.toLowerCase().includes(p.stream.toLowerCase()));
+        if (have.length < MIN_PER_PAIR) {
+          pairs.push({ country: c, degree: p.degree, stream: p.stream, existing: have.map(u => u.name) });
+        }
+      }
+    }
+    if (pairs.length === 0) return;
 
     (async () => {
       setFinding(true);
-      for (const pair of pairs.slice(0, 4)) {
-        const existing = pool.filter(u => u.country === pair.country && u.stream.toLowerCase() === pair.stream.toLowerCase()).map(u => u.name);
-        await supabase.functions.invoke("discover-colleges", {
-          body: { ...pair, budget: (profile as any).budget || undefined, existing },
-        });
-      }
-      await reloadColleges();
+      const queue = pairs.slice(0, 9); // the rest are picked up next visit
+      const worker = async () => {
+        while (queue.length > 0) {
+          const pair = queue.shift()!;
+          try {
+            await supabase.functions.invoke("discover-colleges", {
+              body: { ...pair, budget: (profile as any).budget || undefined },
+            });
+            await reloadColleges(); // show new colleges as soon as they arrive
+          } catch { /* skip this one, carry on */ }
+        }
+      };
+      await Promise.all([worker(), worker(), worker()]);
       setFinding(false);
     })();
-  }, [user, profile, collegesLoading, recResult, finding, pool, reloadColleges]);
-
-  // ===== "What students say" panel =====
-  const [insightsFor, setInsightsFor] = useState<Recommendation | null>(null);
-  const [insights, setInsights] = useState<any>(null);
-  const [insightsLoading, setInsightsLoading] = useState(false);
-  const [insightsError, setInsightsError] = useState("");
-  const openInsights = async (u: Recommendation) => {
-    setInsightsFor(u); setInsights(null); setInsightsError(""); setInsightsLoading(true);
-    const { data, error } = await supabase.functions.invoke("college-insights", {
-      body: { name: u.name, country: u.country, degree: u.degree, stream: u.stream },
-    });
-    if (error || !data || data.error) setInsightsError("We could not load student opinions right now. Please try again in a moment.");
-    else setInsights(data);
-    setInsightsLoading(false);
-  };
+  }, [user, profile, collegesLoading, recResult, pool, reloadColleges]);
 
   const unswiped = recommendations.filter(u => !swiped.has(u.name));
 
@@ -398,9 +386,9 @@ const DashboardPage = () => {
               You have not picked a target country yet, so we are showing colleges in India. <Link to="/profile" className="underline text-primary">Choose your countries</Link> to see others.
             </p>
           )}
-          {recResult.missingCountries.length > 0 && (
+          {!finding && recResult.missingCountries.length > 0 && (
             <p className="mb-3 text-xs rounded-lg bg-secondary/60 p-3">
-              We do not have colleges for {recResult.missingCountries.join(", ")} yet. We are adding them soon.
+              We could not load colleges for {recResult.missingCountries.join(", ")} right now. Please refresh in a few minutes.
             </p>
           )}
           {recommendations.length === 0 ? (
@@ -451,7 +439,7 @@ const DashboardPage = () => {
                       animate={{ scale: 1 - i * 0.03, y: i * 8 }}
                     >
                       {i === 0 ? (
-                        <SwipeCard uni={uni} onSwipe={(dir) => handleSwipe(uni, dir)} onInsights={() => openInsights(uni)} />
+                        <SwipeCard uni={uni} onSwipe={(dir) => handleSwipe(uni, dir)} />
                       ) : (
                         <Card className="h-full glass-card opacity-60">
                           <div className="h-2 w-full bg-muted" />
@@ -556,69 +544,6 @@ const DashboardPage = () => {
         </div>
       )}
 
-      <Dialog open={!!insightsFor} onOpenChange={(o) => { if (!o) setInsightsFor(null); }}>
-        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-heading">What students say about {insightsFor?.name}</DialogTitle>
-          </DialogHeader>
-          {insightsLoading && (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin" />
-              Reading student discussions. This can take up to 20 seconds the first time.
-            </div>
-          )}
-          {insightsError && <p className="text-sm text-destructive">{insightsError}</p>}
-          {insights?.summary && (() => {
-            const s = insights.summary;
-            const rows: [string, string][] = [
-              ["Hostel", s.hostel], ["Food", s.food], ["Campus life", s.campus_life],
-              ["Academics", s.academics], ["Placements", s.placements],
-              ["Safety and support", s.safety_and_support], ["Value for money", s.value_for_money],
-            ];
-            return (
-              <div className="space-y-4 text-sm">
-                <p className="leading-relaxed">{s.overview}</p>
-                {s.confidence === "low" && (
-                  <p className="text-xs rounded-lg bg-yellow-50 text-yellow-800 p-2">Not much is written about this college online, so treat this summary with extra care.</p>
-                )}
-                <div className="grid gap-3">
-                  {rows.filter(([, v]) => v).map(([k, v]) => (
-                    <div key={k} className="rounded-lg bg-secondary p-3">
-                      <p className="label-mono text-[10px] text-muted-foreground mb-1">{k}</p>
-                      <p>{v}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-green-50 p-3">
-                    <p className="font-semibold text-green-800 mb-1">Students like</p>
-                    <ul className="list-disc pl-4 space-y-1 text-green-900">{(s.pros || []).map((p: string) => <li key={p}>{p}</li>)}</ul>
-                  </div>
-                  <div className="rounded-lg bg-red-50 p-3">
-                    <p className="font-semibold text-red-800 mb-1">Students complain about</p>
-                    <ul className="list-disc pl-4 space-y-1 text-red-900">{(s.cons || []).map((p: string) => <li key={p}>{p}</li>)}</ul>
-                  </div>
-                </div>
-                {s.best_for && <p><strong>Best for:</strong> {s.best_for}</p>}
-                {s.think_twice_if && <p><strong>Think twice if:</strong> {s.think_twice_if}</p>}
-                {insights.sources?.length > 0 && (
-                  <div>
-                    <p className="label-mono text-[10px] text-muted-foreground mb-1">Where this comes from</p>
-                    <div className="flex flex-wrap gap-2">
-                      {insights.sources.map((src: any) => (
-                        <a key={src.url} href={src.url} target="_blank" rel="noopener noreferrer" className="text-xs underline text-primary">{src.title || "Source"}</a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <p className="text-[11px] text-muted-foreground">
-                  An AI summary of public student discussions, not an official statement from the college. Always visit the campus or talk to current students before deciding.
-                </p>
-              </div>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
