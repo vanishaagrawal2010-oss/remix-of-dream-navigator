@@ -536,15 +536,23 @@ const DashboardPage = () => {
             <span className="text-xs text-muted-foreground font-normal ml-2">— saved across sessions</span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {liked.map(({ name }) => {
-              const uni = ALL_UNIS.find(u => u.name === name);
+            {liked.map(({ name, country }) => {
+              // Look in the built-in list AND the colleges saved in Supabase
+              const uni = pool.find(u => u.name === name && (!country || u.country === country))
+                || pool.find(u => u.name === name);
               if (!uni) return (
                 <Card key={name} className="glass-card">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <span className="font-heading text-sm">{name}</span>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeLiked(name)}>
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-heading text-sm">{name}</span>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeLiked(name)}>
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{country || "Details not saved for this college"}</p>
+                    <a href={googleSearch(`${name} ${country || ""} official website admissions`)} target="_blank" rel="noopener noreferrer" className="text-xs underline text-primary mt-2 inline-block">
+                      Look up details
+                    </a>
                   </CardContent>
                 </Card>
               );
