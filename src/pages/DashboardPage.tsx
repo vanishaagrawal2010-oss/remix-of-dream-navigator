@@ -178,6 +178,7 @@ const DashboardPage = () => {
   const { user } = useAuth();
   const [swiped, setSwiped] = useState<Set<string>>(new Set());
   const [swipesLoaded, setSwipesLoaded] = useState(false);
+  const [restarted, setRestarted] = useState(false); // true after "Start over": shortlisted colleges show again
   const swipeKey = user ? `dn-swiped-${user.id}` : "";
 
   // Load the colleges this student has already swiped on
@@ -280,7 +281,7 @@ const DashboardPage = () => {
   }, [user, profile, collegesLoading, recResult, pool, reloadColleges]);
 
   const likedNames = new Set(liked.map(l => l.name));
-  const unswiped = recommendations.filter(u => !swiped.has(u.name) && !likedNames.has(u.name));
+  const unswiped = recommendations.filter(u => !swiped.has(u.name) && (restarted || !likedNames.has(u.name)));
 
   const relevantNews = useMemo(() => {
     const recNames = new Set(recommendations.map(r => r.name));
@@ -452,7 +453,7 @@ const DashboardPage = () => {
                 <Sparkles className="mx-auto h-12 w-12 text-primary/50 mb-3" />
                 <p className="font-heading font-semibold">You've seen all {recommendations.length} recommendations!</p>
                 <p className="text-sm text-muted-foreground mt-1">{liked.length} are saved in your shortlist</p>
-                <Button className="mt-4" size="sm" onClick={() => setSwiped(new Set())}>
+                <Button className="mt-4" size="sm" onClick={() => { setSwiped(new Set()); setRestarted(true); }}>
                   Start over
                 </Button>
               </CardContent>
