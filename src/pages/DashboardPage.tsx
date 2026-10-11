@@ -291,6 +291,10 @@ const DashboardPage = () => {
 
   const handleSwipe = async (uni: University, dir: "left" | "right") => {
     setSwiped(prev => new Set([...prev, uni.name]));
+    // Rejecting a college that was shortlisted before takes it off the shortlist
+    if (dir === "left" && user && liked.some(l => l.name === uni.name)) {
+      await removeLiked(uni.name);
+    }
     if (dir === "right" && user) {
       setLiked(prev => prev.find(l => l.name === uni.name) ? prev : [{ name: uni.name, country: uni.country }, ...prev]);
       await supabase.from("shortlists").upsert(
