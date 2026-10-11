@@ -177,6 +177,24 @@ const DashboardPage = () => {
   const { profile, isProfileComplete } = useProfile();
   const { user } = useAuth();
   const [swiped, setSwiped] = useState<Set<string>>(new Set());
+  const [swipesLoaded, setSwipesLoaded] = useState(false);
+  const swipeKey = user ? `dn-swiped-${user.id}` : "";
+
+  // Load the colleges this student has already swiped on
+  useEffect(() => {
+    if (!swipeKey) { setSwiped(new Set()); setSwipesLoaded(false); return; }
+    try {
+      const raw = localStorage.getItem(swipeKey);
+      setSwiped(new Set(raw ? (JSON.parse(raw) as string[]) : []));
+    } catch { setSwiped(new Set()); }
+    setSwipesLoaded(true);
+  }, [swipeKey]);
+
+  // Save them every time they change
+  useEffect(() => {
+    if (!swipeKey || !swipesLoaded) return;
+    try { localStorage.setItem(swipeKey, JSON.stringify([...swiped])); } catch { /* storage blocked: ignore */ }
+  }, [swiped, swipeKey, swipesLoaded]);
   const [liked, setLiked] = useState<{ name: string; country?: string }[]>([]);
 
   // ===== Persistent shortlist via Supabase =====
@@ -206,6 +224,7 @@ const DashboardPage = () => {
 
   // ===== Grow the college list: one search per (country + course) that is short =====
   const [finding, setFinding] = useState(false);
+  const [findError, setFindError] = useState("");
   const discoveryDone = useRef("");
   useEffect(() => {
     if (!user || !profile || collegesLoading) return;
@@ -235,16 +254,24 @@ const DashboardPage = () => {
 
     (async () => {
       setFinding(true);
+      setFindError("");
       const queue = pairs.slice(0, 9); // the rest are picked up next visit
       const worker = async () => {
         while (queue.length > 0) {
           const pair = queue.shift()!;
           try {
-            await supabase.functions.invoke("discover-colleges", {
+            const { data, error } = await supabase.functions.invoke("discover-colleges", {
               body: { ...pair, budget: (profile as any).budget || undefined },
             });
+            if (error || (data && (data as any).error)) {
+              console.error("discover-colleges failed:", error || (data as any).error);
+              setFindError("We could not find extra colleges right now. You can still swipe on the ones below, and we will try again on your next visit.");
+            }
             await reloadColleges(); // show new colleges as soon as they arrive
-          } catch { /* skip this one, carry on */ }
+          } catch (e) {
+            console.error("discover-colleges crashed:", e);
+            setFindError("We could not find extra colleges right now. You can still swipe on the ones below, and we will try again on your next visit.");
+          }
         }
       };
       await Promise.all([worker(), worker(), worker()]);
@@ -252,7 +279,8 @@ const DashboardPage = () => {
     })();
   }, [user, profile, collegesLoading, recResult, pool, reloadColleges]);
 
-  const unswiped = recommendations.filter(u => !swiped.has(u.name));
+  const likedNames = new Set(liked.map(l => l.name));
+  const unswiped = recommendations.filter(u => !swiped.has(u.name) && !likedNames.has(u.name));
 
   const relevantNews = useMemo(() => {
     const recNames = new Set(recommendations.map(r => r.name));
@@ -380,6 +408,9 @@ const DashboardPage = () => {
             <p className="mb-3 text-xs rounded-lg bg-primary/10 text-primary p-3 flex items-center gap-2">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Finding more colleges that fit you. This takes a minute the first time.
             </p>
+          )}
+          {!finding && findError && (
+            <p className="mb-3 text-xs rounded-lg bg-secondary/60 p-3">{findError}</p>
           )}
           {hasAnyPref && recResult.defaultedToIndia && (
             <p className="mb-3 text-xs rounded-lg bg-secondary/60 p-3">
